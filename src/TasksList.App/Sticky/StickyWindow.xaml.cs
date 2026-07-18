@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using TasksList.App.Editor;
+using TasksList.Core.Markdown;
 using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
 
@@ -10,10 +12,12 @@ public partial class StickyWindow : Window
 {
     private readonly TasksListDatabase _database;
     private readonly DispatcherTimer _saveTimer;
+    private readonly MarkdownDocumentService _markdownService = new();
     private Note _note;
     private bool _isLoading = true;
     private bool _isRolled;
     private double _expandedHeight;
+    private bool _isPreviewing;
 
     public StickyWindow(Note note, TasksListDatabase database)
     {
@@ -58,6 +62,42 @@ public partial class StickyWindow : Window
             ? System.Windows.Media.Brushes.SeaGreen
             : System.Windows.Media.Brushes.SaddleBrown;
         PinButton.ToolTip = Topmost ? "Always on top" : "Normal window level";
+    }
+
+    private void ModeClick(object sender, RoutedEventArgs e)
+    {
+        _isPreviewing = !_isPreviewing;
+        if (_isPreviewing)
+        {
+            PreviewViewer.Document = MarkdownFlowDocumentBuilder.Build(
+                _markdownService.Parse(MarkdownBox.Text),
+                ToggleTaskFromPreview);
+            MarkdownBox.Visibility = Visibility.Collapsed;
+            PreviewViewer.Visibility = Visibility.Visible;
+            ModeButton.Content = "EDIT";
+        }
+        else
+        {
+            PreviewViewer.Visibility = Visibility.Collapsed;
+            MarkdownBox.Visibility = Visibility.Visible;
+            ModeButton.Content = "PREVIEW";
+            MarkdownBox.Focus();
+        }
+    }
+
+    private void ToggleTaskFromPreview(int taskIndex, bool isChecked)
+    {
+        var parsed = _markdownService.Parse(MarkdownBox.Text);
+        var task = parsed.Blocks.OfType<MarkdownTask>().Single(item => item.TaskIndex == taskIndex);
+        if (task.IsChecked == isChecked)
+        {
+            return;
+        }
+
+        MarkdownBox.Text = _markdownService.ToggleTask(MarkdownBox.Text, taskIndex);
+        PreviewViewer.Document = MarkdownFlowDocumentBuilder.Build(
+            _markdownService.Parse(MarkdownBox.Text),
+            ToggleTaskFromPreview);
     }
 
     private void RollClick(object sender, RoutedEventArgs e)

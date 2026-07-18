@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -93,6 +94,41 @@ public partial class MainWindow : Window
 
     private void SearchTextChanged(object sender, TextChangedEventArgs e) => ApplySearch();
 
+    private void MarkdownDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = HasMarkdownFile(e.Data) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void MarkdownDrop(object sender, DragEventArgs e)
+    {
+        if (!HasMarkdownFile(e.Data) ||
+            e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: > 0 } files)
+        {
+            return;
+        }
+
+        foreach (var path in files.Where(IsMarkdownPath))
+        {
+            var markdown = await File.ReadAllTextAsync(path);
+            var title = Path.GetFileNameWithoutExtension(path);
+            var note = Note.Create(title, markdown);
+            await _database.SaveNoteAsync(note);
+        }
+
+        await ReloadNotesAsync();
+        StatusText.Text = $"IMPORTED · {files.Count(IsMarkdownPath)} MARKDOWN";
+    }
+
+    private static bool HasMarkdownFile(IDataObject data) =>
+        data.GetDataPresent(DataFormats.FileDrop) &&
+        data.GetData(DataFormats.FileDrop) is string[] files &&
+        files.Any(IsMarkdownPath);
+
+    private static bool IsMarkdownPath(string path) =>
+        string.Equals(Path.GetExtension(path), ".md", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Path.GetExtension(path), ".markdown", StringComparison.OrdinalIgnoreCase);
+
     private void ApplySearch()
     {
         if (NotesList is null)
@@ -182,4 +218,3 @@ public sealed class NoteCardViewModel
 
     public Brush StatusBrush { get; }
 }
-

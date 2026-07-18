@@ -9,7 +9,10 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        AllowDrop="True"
+        DragOver="MarkdownDragOver"
+        Drop="MarkdownDrop">
     <Border Background="{StaticResource CanvasBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"

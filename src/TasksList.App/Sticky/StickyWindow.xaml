@@ -46,18 +46,28 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            <TextBox Grid.Row="1" x:Name="MarkdownBox" AcceptsReturn="True" AcceptsTab="True"
-                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                     Background="Transparent" Foreground="#3A3022" BorderThickness="0"
-                     Padding="16,13" FontFamily="Aptos, Segoe UI" FontSize="13"
-                     TextChanged="ContentChanged" />
+            <Grid Grid.Row="1">
+                <TextBox x:Name="MarkdownBox" AcceptsReturn="True" AcceptsTab="True"
+                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                         Background="Transparent" Foreground="#3A3022" BorderThickness="0"
+                         Padding="16,13" FontFamily="Aptos, Segoe UI" FontSize="13"
+                         TextChanged="ContentChanged" />
+                <FlowDocumentScrollViewer x:Name="PreviewViewer" Visibility="Collapsed"
+                                          Background="Transparent" Foreground="#3A3022"
+                                          VerticalScrollBarVisibility="Auto" IsToolBarVisible="False" />
+            </Grid>
             <Grid Grid.Row="2" Margin="12,0,10,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="ContextText" Text="UNATTACHED" Foreground="#826C4D"
-                           FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="ContextText" Text="UNATTACHED" Foreground="#826C4D"
+                               FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button x:Name="ModeButton" Content="PREVIEW" Foreground="#5C4930" Background="#18FFFFFF"
+                            BorderThickness="0" Padding="7,3" Margin="9,0,0,0" FontSize="9" FontWeight="Bold"
+                            Cursor="Hand" Click="ModeClick" />
+                </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="SaveText" Text="SAVED" Foreground="#47705D" FontSize="9"
                                FontWeight="Bold" Margin="0,0,9,0" />
@@ -67,4 +77,3 @@
         </Grid>
     </Border>
 </Window>
-

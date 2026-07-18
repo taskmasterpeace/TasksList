@@ -1,0 +1,15 @@
+{
+  "id": "taskslist-default",
+  "name": "Task'sList Warm Charcoal",
+  "version": "1.0.0",
+  "tokens": {
+    "canvas": "#17191B",
+    "panel": "#1E2225",
+    "card": "#252A2E",
+    "border": "#3A4247",
+    "paper": "#F4CE62",
+    "ink": "#2E271C",
+    "accent": "#F19A4B",
+    "success": "#72C29B"
+  }
+}

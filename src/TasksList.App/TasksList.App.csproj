@@ -5,6 +5,10 @@
     <ProjectReference Include="..\TasksList.Infrastructure\TasksList.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\themes\default\theme.json" Link="themes\default\theme.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
