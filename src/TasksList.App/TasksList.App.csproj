@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Content Include="..\..\themes\default\theme.json" Link="themes\default\theme.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\brand\generated\TasksList.ico" Link="assets\TasksList.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +22,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>..\..\assets\brand\generated\TasksList.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

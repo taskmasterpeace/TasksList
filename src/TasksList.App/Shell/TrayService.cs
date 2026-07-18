@@ -45,7 +45,7 @@ public sealed class TrayService : IDisposable
         _icon = new Forms.NotifyIcon
         {
             Text = "Task'sList",
-            Icon = SystemIcons.Application,
+            Icon = TrayIconLoader.Load(Environment.ProcessPath),
             ContextMenuStrip = menu,
             Visible = true,
         };
