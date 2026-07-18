@@ -106,4 +106,16 @@ public sealed class NoteAppearancePolicyTests
         Assert.Equal(0.65, changed.ActiveOpacity);
         Assert.Equal("Cascadia Mono", changed.FontFamily);
     }
+
+    [Theory]
+    [InlineData("#000000", "#FFFFFF", 21)]
+    [InlineData("#FFFFFF", "#FFFFFF", 1)]
+    [InlineData("#777777", "#FFFFFF", 4.48)]
+    public void ContrastRatioUsesWcagRelativeLuminance(
+        string foreground,
+        string background,
+        double expected)
+    {
+        Assert.Equal(expected, NoteAppearancePolicy.ContrastRatio(foreground, background), 2);
+    }
 }

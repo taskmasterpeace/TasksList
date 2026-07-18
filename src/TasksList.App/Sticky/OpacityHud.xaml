@@ -1,0 +1,9 @@
+<UserControl x:Class="TasksList.App.Sticky.OpacityHud"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="92" Height="42">
+    <Border Background="#E6212228" CornerRadius="11" BorderBrush="#40FFFFFF" BorderThickness="1">
+        <TextBlock x:Name="ValueText" Foreground="#FFF8EE" FontSize="15" FontWeight="Bold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Border>
+</UserControl>

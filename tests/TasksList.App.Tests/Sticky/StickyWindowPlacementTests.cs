@@ -5,6 +5,16 @@ namespace TasksList.App.Tests.Sticky;
 public sealed class StickyWindowPlacementTests
 {
     [Fact]
+    public void ClosestMonitorUsesTheDisplayContainingTheSticky()
+    {
+        var primary = new WindowBounds(0, 0, 1920, 1040);
+        var left = new WindowBounds(-1600, 0, 1600, 900);
+        var sticky = new WindowBounds(-900, 200, 320, 240);
+
+        Assert.Equal(left, StickyWindowPlacement.ClosestMonitor(sticky, [primary, left]));
+    }
+
+    [Fact]
     public void ClampMovesAnOffscreenNoteOntoTheNearestMonitor()
     {
         var note = new WindowBounds(4200, 200, 360, 280);
@@ -34,4 +44,3 @@ public sealed class StickyWindowPlacementTests
         Assert.Equal(260, result.Height);
     }
 }
-

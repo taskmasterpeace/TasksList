@@ -16,6 +16,7 @@ using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
 using CaptureModel = TasksList.Core.Models.Capture;
 using TasksList.Core.Contexts;
+using TasksList.Core.Notes;
 
 namespace TasksList.App;
 
@@ -26,6 +27,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ClipboardCardViewModel> _clipboardCards = [];
     private readonly ObservableCollection<PlaceCardViewModel> _placeCards = [];
     private readonly Dictionary<NoteId, StickyWindow> _openStickies = [];
+    private readonly HashSet<NoteId> _openingStickies = [];
     private readonly ClipboardMonitor _clipboardMonitor;
     private readonly BrowserBridgeMonitor _browserBridgeMonitor;
     private readonly PayloadStore _payloadStore;
@@ -101,10 +103,7 @@ public partial class MainWindow : Window
 
     private async void NewStickyClick(object sender, RoutedEventArgs e)
     {
-        var note = Note.Create("New sticky", "# New sticky\n\nStart typing…");
-        await _database.SaveNoteAsync(note);
-        await ReloadNotesAsync();
-        OpenSticky(note);
+        await CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
     }
 
     private async void CaptureRegionClick(object sender, RoutedEventArgs e)
@@ -145,24 +144,146 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OpenSticky(Note note)
+    private async void OpenSticky(Note note)
     {
         if (_openStickies.TryGetValue(note.Id, out var existing))
         {
+            if (!existing.IsVisible)
+            {
+                existing.Show();
+            }
             existing.Activate();
             return;
         }
 
-        var index = _openStickies.Count;
-        var sticky = new StickyWindow(note, _database, () => _lastExternalContext)
+        if (!_openingStickies.Add(note.Id))
         {
-            Left = Left + 310 + (index * 28),
-            Top = Top + 120 + (index * 24),
-        };
-        sticky.NoteSaved += async (_, _) => await ReloadNotesAsync();
-        sticky.Closed += (_, _) => _openStickies.Remove(note.Id);
-        _openStickies[note.Id] = sticky;
-        sticky.Show();
+            return;
+        }
+
+        try
+        {
+            var presentation = await _database.GetNotePresentationAsync(note.Id);
+            if (presentation.CreatedAt == DateTimeOffset.UnixEpoch)
+            {
+                var index = _openStickies.Count;
+                var now = DateTimeOffset.Now;
+                var defaultStyle = (await _database.ListNamedStylesAsync())
+                    .FirstOrDefault(style => style.IsDefault);
+                if (defaultStyle is not null)
+                {
+                    presentation = presentation.ApplyStyle(defaultStyle.Style);
+                }
+                presentation = presentation with
+                {
+                    Bounds = presentation.Bounds with
+                    {
+                        Left = Left + 310 + (index * 28),
+                        Top = Top + 120 + (index * 24),
+                    },
+                    CreatedAt = now,
+                    ModifiedAt = now,
+                };
+                await _database.SaveNotePresentationAsync(presentation);
+            }
+            else if (presentation.HiddenAt is not null)
+            {
+                presentation = presentation with
+                {
+                    HiddenAt = null,
+                    ModifiedAt = DateTimeOffset.Now,
+                };
+                await _database.SaveNotePresentationAsync(presentation);
+            }
+
+            var requestedBounds = new WindowBounds(
+                presentation.Bounds.Left,
+                presentation.Bounds.Top,
+                presentation.Bounds.Width,
+                presentation.Bounds.Height);
+            var visibleBounds = StickyWindowPlacement.ClampToMonitors(
+                requestedBounds,
+                MonitorWorkAreaProvider.GetWorkAreas());
+            if (visibleBounds != requestedBounds)
+            {
+                presentation = presentation with
+                {
+                    Bounds = presentation.Bounds with
+                    {
+                        Left = visibleBounds.Left,
+                        Top = visibleBounds.Top,
+                        Width = visibleBounds.Width,
+                        Height = visibleBounds.Height,
+                        ExpandedHeight = Math.Min(
+                            presentation.Bounds.ExpandedHeight,
+                            visibleBounds.Height),
+                    },
+                    ModifiedAt = DateTimeOffset.Now,
+                };
+                await _database.SaveNotePresentationAsync(presentation);
+            }
+
+            var sticky = new StickyWindow(
+                note,
+                presentation,
+                _database,
+                () => _lastExternalContext,
+                () => _openStickies
+                    .Where(pair => pair.Key != note.Id)
+                    .Select(pair => pair.Value.CurrentBounds)
+                    .ToArray());
+            sticky.NoteSaved += async (_, _) => await ReloadNotesAsync();
+            sticky.NewStickyRequested += async () =>
+                await CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
+            sticky.NewFromClipboardRequested += async () =>
+            {
+                var text = System.Windows.Clipboard.ContainsText()
+                    ? System.Windows.Clipboard.GetText()
+                    : string.Empty;
+                await CreateAndOpenStickyAsync(
+                    "Clipboard note",
+                    string.IsNullOrWhiteSpace(text) ? "# Clipboard note" : text);
+            };
+            sticky.DuplicateRequested += async source =>
+            {
+                var sourcePresentation = sticky.CurrentPresentation;
+                var duplicate = Note.Create($"{source.Title} copy", source.Markdown);
+                await _database.SaveNoteAsync(duplicate);
+                var now = DateTimeOffset.Now;
+                var duplicatePresentation = sourcePresentation with
+                {
+                    NoteId = duplicate.Id,
+                    Bounds = sourcePresentation.Bounds with
+                    {
+                        Left = sourcePresentation.Bounds.Left + 24,
+                        Top = sourcePresentation.Bounds.Top + 24,
+                    },
+                    HiddenAt = null,
+                    DeletedAt = null,
+                    CreatedAt = now,
+                    ModifiedAt = now,
+                };
+                await _database.SaveNotePresentationAsync(duplicatePresentation);
+                await ReloadNotesAsync();
+                OpenSticky(duplicate);
+            };
+            sticky.ArchiveRequested += async _ => await ReloadNotesAsync();
+            sticky.Closed += (_, _) => _openStickies.Remove(note.Id);
+            _openStickies[note.Id] = sticky;
+            sticky.Show();
+        }
+        finally
+        {
+            _openingStickies.Remove(note.Id);
+        }
+    }
+
+    private async Task CreateAndOpenStickyAsync(string title, string markdown)
+    {
+        var note = Note.Create(title, markdown);
+        await _database.SaveNoteAsync(note);
+        await ReloadNotesAsync();
+        OpenSticky(note);
     }
 
     private async void ContextTimerTick(object? sender, EventArgs e)
@@ -189,6 +310,19 @@ public partial class MainWindow : Window
             var notes = await _database.ListNotesAsync();
             foreach (var note in notes.Where(note => note.Attachments.Count > 0))
             {
+                var presentation = await _database.GetNotePresentationAsync(note.Id);
+                var lifecycleHidden = presentation.HiddenAt is not null ||
+                                      presentation.DeletedAt is not null ||
+                                      presentation.WakeAt is not null;
+                if (lifecycleHidden)
+                {
+                    if (_openStickies.TryGetValue(note.Id, out var hiddenSticky) && hiddenSticky.IsVisible)
+                    {
+                        hiddenSticky.Hide();
+                    }
+                    continue;
+                }
+
                 var shouldShow = AttachmentVisibilityPolicy.ShouldShow(note, _lastExternalContext.Id);
                 if (shouldShow && !_openStickies.ContainsKey(note.Id))
                 {

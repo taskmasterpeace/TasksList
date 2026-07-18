@@ -24,15 +24,20 @@ public static class StickyWindowPlacement
             return requested;
         }
 
-        var monitor = monitors
-            .OrderBy(candidate => DistanceSquared(requested, candidate))
-            .First();
+        var monitor = ClosestMonitor(requested, monitors);
         var width = Math.Min(requested.Width, monitor.Width);
         var height = Math.Min(requested.Height, monitor.Height);
         var left = Math.Clamp(requested.Left, monitor.Left, monitor.Right - width);
         var top = Math.Clamp(requested.Top, monitor.Top, monitor.Bottom - height);
         return new WindowBounds(left, top, width, height);
     }
+
+    public static WindowBounds ClosestMonitor(
+        WindowBounds requested,
+        IReadOnlyList<WindowBounds> monitors) =>
+        monitors.Count == 0
+            ? requested
+            : monitors.OrderBy(candidate => DistanceSquared(requested, candidate)).First();
 
     public static WindowBounds RestoreRelative(
         WindowBounds applicationWindow,
@@ -54,4 +59,3 @@ public static class StickyWindowPlacement
         return (deltaX * deltaX) + (deltaY * deltaY);
     }
 }
-

@@ -2,81 +2,171 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Task'sList sticky"
-        Width="360"
-        Height="330"
-        MinWidth="260"
-        MinHeight="68"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        ResizeMode="CanResizeWithGrip"
-        Topmost="True"
-        ShowInTaskbar="False">
+        Width="360" Height="330" MinWidth="260" MinHeight="68"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="CanResizeWithGrip" Topmost="True" ShowInTaskbar="False"
+        PreviewKeyDown="WindowPreviewKeyDown"
+        PreviewMouseWheel="WindowPreviewMouseWheel"
+        Activated="WindowActivated" Deactivated="WindowDeactivated">
+    <Window.Resources>
+        <Style x:Key="StickyIconButton" TargetType="Button">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#5A4933" />
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background" Value="#20FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush" Value="#805D4A2A" />
+                                <Setter TargetName="ButtonSurface" Property="BorderThickness" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
     <Border x:Name="Paper" Background="#F4CE62" CornerRadius="10"
             BorderBrush="#805C451A" BorderThickness="1">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="18" ShadowDepth="5" Opacity="0.36" Color="#000000" />
+            <DropShadowEffect x:Name="PaperShadow" BlurRadius="18" ShadowDepth="5"
+                              Opacity="0.36" Color="#000000" />
         </Border.Effect>
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="New sticky" InputGestureText="Ctrl+N" Click="NewStickyMenuClick" />
+                <MenuItem Header="New from clipboard" InputGestureText="Ctrl+Shift+N" Click="NewFromClipboardMenuClick" />
+                <MenuItem Header="Duplicate" InputGestureText="Ctrl+D" Click="DuplicateMenuClick" />
+                <Separator />
+                <MenuItem Header="Edit title" InputGestureText="F2" Click="EditTitleMenuClick" />
+                <MenuItem Header="Customize…" Click="CustomizeClick" />
+                <MenuItem x:Name="TopmostMenuItem" Header="Always on top" IsCheckable="True"
+                          InputGestureText="Ctrl+Shift+T" Click="PinClick" />
+                <MenuItem x:Name="RollMenuItem" Header="Roll up" IsCheckable="True"
+                          InputGestureText="Ctrl+M" Click="RollClick" />
+                <MenuItem x:Name="LockMenuItem" Header="Lock note" IsCheckable="True"
+                          InputGestureText="Ctrl+L" Click="LockClick" />
+                <Separator />
+                <MenuItem Header="Attach to last application" Click="AttachClick" />
+                <MenuItem Header="Archive note" Click="ArchiveMenuClick" />
+            </ContextMenu>
+        </Border.ContextMenu>
+
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="48" />
+                <RowDefinition x:Name="HeaderRow" Height="48" />
                 <RowDefinition x:Name="ContentRow" Height="*" />
-                <RowDefinition x:Name="FooterRow" Height="34" />
+                <RowDefinition x:Name="FooterRow" Height="36" />
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" BorderBrush="#315C451A" BorderThickness="0,0,0,1"
-                    MouseLeftButtonDown="TitleBarMouseDown">
-                <Grid Margin="12,0,7,0">
+
+            <Border x:Name="Header" Grid.Row="0" BorderBrush="#315C451A" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBarMouseDown"
+                    MouseEnter="HeaderMouseEnter" MouseLeave="HeaderMouseLeave">
+                <Grid Margin="14,0,7,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="TitleBox" Background="Transparent" BorderThickness="0" Padding="0"
-                             Foreground="#2E271C" FontWeight="Bold" FontSize="14" VerticalContentAlignment="Center"
-                             TextChanged="ContentChanged" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button x:Name="PinButton" Content="●" Width="30" Height="30" ToolTip="Always on top"
-                                Foreground="#315D4A" Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                Click="PinClick" />
-                        <Button Content="—" Width="30" Height="30" ToolTip="Roll up"
-                                Foreground="#5A4933" Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                Click="RollClick" />
-                        <Button Content="×" Width="30" Height="30" ToolTip="Close sticky"
-                                Foreground="#5A4933" Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                Click="CloseClick" />
+
+                    <Grid x:Name="TitleHost" VerticalAlignment="Stretch" Margin="0,0,8,0">
+                        <TextBlock x:Name="TitleText" VerticalAlignment="Center"
+                                   Foreground="#2E271C" FontWeight="SemiBold" FontSize="14"
+                                   TextTrimming="CharacterEllipsis" Cursor="SizeAll" />
+                        <TextBox x:Name="TitleEditor" Visibility="Collapsed" Background="#16FFFFFF"
+                                 BorderBrush="#705C451A" BorderThickness="0,0,0,1" Padding="0"
+                                 Foreground="#2E271C" FontWeight="SemiBold" FontSize="14"
+                                 VerticalContentAlignment="Center" KeyDown="TitleEditorKeyDown"
+                                 LostKeyboardFocus="TitleEditorLostKeyboardFocus" />
+                    </Grid>
+
+                    <StackPanel x:Name="ChromePanel" Grid.Column="1" Orientation="Horizontal"
+                                VerticalAlignment="Center" Opacity="0">
+                        <Button x:Name="PinButton" Style="{StaticResource StickyIconButton}"
+                                Content="&#xE718;" ToolTip="Always on top (Ctrl+Shift+T)"
+                                AutomationProperties.Name="Always on top" Click="PinClick" />
+                        <Button x:Name="RollButton" Style="{StaticResource StickyIconButton}"
+                                Content="&#xE70E;" ToolTip="Roll up (Ctrl+M)"
+                                AutomationProperties.Name="Roll up" Click="RollClick" />
+                        <Button x:Name="CustomizeButton" Style="{StaticResource StickyIconButton}"
+                                Content="&#xE790;" ToolTip="Customize note"
+                                AutomationProperties.Name="Customize note" Click="CustomizeClick" />
+                        <Button Style="{StaticResource StickyIconButton}" Content="&#xE712;"
+                                ToolTip="More actions" AutomationProperties.Name="More actions" Click="MoreClick" />
+                        <Button Style="{StaticResource StickyIconButton}" Content="&#xE711;"
+                                ToolTip="Archive note" AutomationProperties.Name="Archive note" Click="CloseClick" />
                     </StackPanel>
                 </Grid>
             </Border>
+
             <Grid Grid.Row="1">
                 <TextBox x:Name="MarkdownBox" AcceptsReturn="True" AcceptsTab="True"
                          TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                          Background="Transparent" Foreground="#3A3022" BorderThickness="0"
-                         Padding="16,13" FontFamily="Aptos, Segoe UI" FontSize="13"
-                         TextChanged="ContentChanged" />
+                         Padding="16,13" FontFamily="Segoe UI Variable Text, Segoe UI"
+                         FontSize="13" TextChanged="ContentChanged" />
                 <FlowDocumentScrollViewer x:Name="PreviewViewer" Visibility="Collapsed"
                                           Background="Transparent" Foreground="#3A3022"
                                           VerticalScrollBarVisibility="Auto" IsToolBarVisible="False" />
             </Grid>
-            <Grid Grid.Row="2" Margin="12,0,10,0">
+
+            <Grid Grid.Row="2" Margin="13,0,11,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock x:Name="ContextText" Text="UNATTACHED" Foreground="#826C4D"
-                               FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Button Content="ATTACH" Foreground="#5C4930" Background="#18FFFFFF"
-                            BorderThickness="0" Padding="7,3" Margin="8,0,0,0" FontSize="9" FontWeight="Bold"
-                            Cursor="Hand" Click="AttachClick" ToolTip="Attach this sticky to the last application you were using" />
-                    <Button x:Name="ModeButton" Content="PREVIEW" Foreground="#5C4930" Background="#18FFFFFF"
-                            BorderThickness="0" Padding="7,3" Margin="9,0,0,0" FontSize="9" FontWeight="Bold"
-                            Cursor="Hand" Click="ModeClick" />
+                    <Border x:Name="StateBadge" Background="#16FFFFFF" CornerRadius="7" Padding="6,3">
+                        <TextBlock x:Name="ContextText" Text="UNATTACHED" Foreground="#826C4D"
+                                   FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                    <Button Content="ATTACH" Foreground="#5C4930" Background="Transparent"
+                            BorderThickness="0" Padding="7,3" Margin="5,0,0,0" FontSize="9"
+                            FontWeight="Bold" Cursor="Hand" Click="AttachClick"
+                            ToolTip="Attach to the last application you used" />
+                    <Button x:Name="ModeButton" Content="PREVIEW" Foreground="#5C4930"
+                            Background="Transparent" BorderThickness="0" Padding="7,3"
+                            Margin="4,0,0,0" FontSize="9" FontWeight="Bold" Cursor="Hand"
+                            Click="ModeClick" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="SaveText" Text="SAVED" Foreground="#47705D" FontSize="9"
-                               FontWeight="Bold" Margin="0,0,9,0" />
-                    <TextBlock Text="↘" Foreground="#826C4D" FontSize="11" ToolTip="Resize from the corner" />
+                               FontWeight="Bold" Margin="0,0,8,0" />
+                    <TextBlock x:Name="OpacityText" Text="100%" Foreground="#826C4D" FontSize="9"
+                               FontWeight="SemiBold" ToolTip="Ctrl + mouse wheel changes opacity" />
                 </StackPanel>
             </Grid>
         </Grid>
     </Border>
+
+    <Popup x:Name="CustomizePopup" PlacementTarget="{Binding ElementName=CustomizeButton}"
+           Placement="Bottom" HorizontalOffset="-210" VerticalOffset="6"
+           AllowsTransparency="True" StaysOpen="False">
+        <local:CustomizeFlyout xmlns:local="clr-namespace:TasksList.App.Sticky" x:Name="CustomizeControl" />
+    </Popup>
+
+    <Popup x:Name="OpacityPopup" PlacementTarget="{Binding ElementName=Paper}"
+           Placement="Center" AllowsTransparency="True" StaysOpen="True">
+        <local:OpacityHud xmlns:local="clr-namespace:TasksList.App.Sticky" x:Name="OpacityHudControl" />
+    </Popup>
+    </Grid>
 </Window>

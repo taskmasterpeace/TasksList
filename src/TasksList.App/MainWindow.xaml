@@ -190,6 +190,7 @@
                             <Button Style="{StaticResource GhostButton}" Content="⌗  Capture region"
                                     Margin="0,0,8,0" Click="CaptureRegionClick" />
                             <Button Style="{StaticResource PrimaryButton}" Content="＋  New sticky"
+                                    AutomationProperties.Name="New sticky"
                                     Click="NewStickyClick" />
                         </StackPanel>
                     </Grid>

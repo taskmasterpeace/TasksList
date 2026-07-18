@@ -37,4 +37,31 @@ public static class NoteAppearancePolicy
         value.Length == 7 &&
         value[0] == '#' &&
         int.TryParse(value.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _);
+
+    public static double ContrastRatio(string foregroundHex, string backgroundHex)
+    {
+        if (!IsLocalHexColor(foregroundHex) || !IsLocalHexColor(backgroundHex))
+        {
+            throw new ArgumentException("Contrast colors must use #RRGGBB format.");
+        }
+
+        var foreground = RelativeLuminance(foregroundHex);
+        var background = RelativeLuminance(backgroundHex);
+        var lighter = Math.Max(foreground, background);
+        var darker = Math.Min(foreground, background);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    private static double RelativeLuminance(string hex)
+    {
+        var red = int.Parse(hex.AsSpan(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) / 255d;
+        var green = int.Parse(hex.AsSpan(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) / 255d;
+        var blue = int.Parse(hex.AsSpan(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) / 255d;
+        return (0.2126 * Linearize(red)) + (0.7152 * Linearize(green)) + (0.0722 * Linearize(blue));
+    }
+
+    private static double Linearize(double component) =>
+        component <= 0.04045
+            ? component / 12.92
+            : Math.Pow((component + 0.055) / 1.055, 2.4);
 }

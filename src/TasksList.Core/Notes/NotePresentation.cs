@@ -114,6 +114,26 @@ public sealed record NoteStyle
             TextureEnabled = true,
         };
     }
+
+    public static NoteStyle FromPresentation(NotePresentation presentation) => new()
+    {
+        Preset = presentation.Preset,
+        BackgroundHex = presentation.BackgroundHex,
+        TextHex = presentation.TextHex,
+        AccentHex = presentation.AccentHex,
+        ActiveOpacity = presentation.ActiveOpacity,
+        InactiveOpacity = presentation.InactiveOpacity,
+        FontFamily = presentation.FontFamily,
+        FontSize = presentation.FontSize,
+        FontWeight = presentation.FontWeight,
+        LineSpacing = presentation.LineSpacing,
+        Density = presentation.Density,
+        ToolbarVisibility = presentation.ToolbarVisibility,
+        ShadowStrength = presentation.ShadowStrength,
+        CornerStyle = presentation.CornerStyle,
+        BorderVisible = presentation.BorderVisible,
+        TextureEnabled = presentation.TextureEnabled,
+    };
 }
 
 public sealed record NamedNoteStyle(
