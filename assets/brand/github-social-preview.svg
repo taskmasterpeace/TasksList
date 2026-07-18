@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title description">
+  <title id="title">Task'sList GitHub social preview</title>
+  <desc id="description">Task'sList product name beside layered sticky notes, clipboard context, an opacity control, and application attachment indicators.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="80" y1="40" x2="1200" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#252A2E"/>
+      <stop offset="0.62" stop-color="#17191B"/>
+      <stop offset="1" stop-color="#1E2027"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(941 294) rotate(145) scale(478 390)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B6CF6" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#8B6CF6" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0v40" fill="none" stroke="#F6F2EA" stroke-opacity=".035"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".34"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="640" rx="32" fill="url(#canvas)"/>
+  <rect width="1280" height="640" rx="32" fill="url(#glow)"/>
+  <rect width="1280" height="640" rx="32" fill="url(#grid)"/>
+  <rect x="1.5" y="1.5" width="1277" height="637" rx="30.5" fill="none" stroke="#3A4247" stroke-width="3"/>
+
+  <g transform="translate(72 76)">
+    <rect width="118" height="118" rx="30" fill="#17191B" stroke="#3A4247" stroke-width="4"/>
+    <rect x="51" y="22" width="53" height="62" rx="13" fill="#8B6CF6" transform="rotate(8 77.5 53)"/>
+    <path d="M29 31h49c11 0 19 8 19 19v39l-26 26H29c-11 0-20-9-20-20V51c0-11 9-20 20-20Z" fill="#F4CE62"/>
+    <path d="M71 115V99c0-6 5-10 10-10h16l-26 26Z" fill="#F19A4B"/>
+    <path d="m29 70 13 13 28-31" fill="none" stroke="#252A2E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M101 12c2 9 6 13 15 15-9 2-13 6-15 15-2-9-6-13-15-15 9-2 13-6 15-15Z" fill="#F6F2EA"/>
+  </g>
+
+  <text x="72" y="288" fill="#F6F2EA" font-family="Segoe UI" font-size="82" font-weight="700" letter-spacing="-3">Task'sList</text>
+  <text x="76" y="345" fill="#B9C2C1" font-family="Segoe UI" font-size="27" font-weight="500">Your work, right where it belongs.</text>
+  <text x="76" y="407" fill="#E1DDD5" font-family="Segoe UI" font-size="21">Sticky notes · Infinite clipboard · App &amp; tab context</text>
+
+  <g transform="translate(76 456)" font-family="Segoe UI" font-size="17" font-weight="600">
+    <rect width="132" height="44" rx="22" fill="#4A3323" stroke="#6D4D30"/>
+    <circle cx="23" cy="22" r="5" fill="#F19A4B"/>
+    <text x="40" y="28" fill="#F6F2EA">WINDOWS</text>
+    <rect x="146" width="142" height="44" rx="22" fill="#302B50" stroke="#4D447A"/>
+    <circle cx="169" cy="22" r="5" fill="#8B6CF6"/>
+    <text x="186" y="28" fill="#F6F2EA">PLUGINS</text>
+    <rect x="302" width="158" height="44" rx="22" fill="#213B32" stroke="#345C4E"/>
+    <circle cx="325" cy="22" r="5" fill="#72C29B"/>
+    <text x="342" y="28" fill="#F6F2EA">LOCAL-FIRST</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <g transform="rotate(7 995 279)">
+      <rect x="830" y="88" width="330" height="382" rx="38" fill="#8B6CF6"/>
+      <rect x="854" y="122" width="194" height="18" rx="9" fill="#F6F2EA" fill-opacity=".4"/>
+      <rect x="854" y="158" width="242" height="12" rx="6" fill="#F6F2EA" fill-opacity=".22"/>
+    </g>
+    <path d="M772 132h300c31 0 56 25 56 56v256l-108 108H772c-32 0-58-26-58-58V190c0-32 26-58 58-58Z" fill="#F4CE62"/>
+    <path d="M1020 552v-62c0-25 21-46 46-46h62l-108 108Z" fill="#F19A4B"/>
+  </g>
+
+  <text x="762" y="206" fill="#665525" font-family="Segoe UI" font-size="15" font-weight="700" letter-spacing="2">RELEASE WORKSPACE</text>
+  <text x="762" y="252" fill="#252A2E" font-family="Segoe UI" font-size="32" font-weight="700">Ship the next idea.</text>
+  <g font-family="Segoe UI" font-size="18" fill="#3C3627">
+    <rect x="762" y="294" width="24" height="24" rx="7" fill="#252A2E"/>
+    <path d="m768 306 5 5 9-11" fill="none" stroke="#F4CE62" stroke-width="3" stroke-linecap="round"/>
+    <text x="802" y="313">Package Windows build</text>
+    <rect x="762" y="340" width="24" height="24" rx="7" fill="none" stroke="#675C3C" stroke-width="2"/>
+    <text x="802" y="359">Publish plugin examples</text>
+    <rect x="762" y="386" width="24" height="24" rx="7" fill="none" stroke="#675C3C" stroke-width="2"/>
+    <text x="802" y="405">Open-source TasksList</text>
+  </g>
+
+  <g transform="translate(810 475)">
+    <rect width="180" height="42" rx="21" fill="#252A2E" stroke="#3A4247"/>
+    <circle cx="23" cy="21" r="7" fill="#72C29B"/>
+    <text x="41" y="27" fill="#F6F2EA" font-family="Segoe UI" font-size="15" font-weight="600">ATTACHED · CODE</text>
+  </g>
+  <g transform="translate(956 82)">
+    <rect width="188" height="44" rx="22" fill="#252A2E" stroke="#3A4247"/>
+    <text x="18" y="28" fill="#B9C2C1" font-family="Segoe UI" font-size="15">OPACITY</text>
+    <rect x="91" y="19" width="75" height="6" rx="3" fill="#4C5458"/>
+    <circle cx="146" cy="22" r="9" fill="#F19A4B"/>
+  </g>
+  <path d="M1180 76c5 27 18 40 45 45-27 5-40 18-45 45-5-27-18-40-45-45 27-5 40-18 45-45Z" fill="#F6F2EA"/>
+</svg>

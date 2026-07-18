@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420" role="img" aria-labelledby="title description">
+  <title id="title">Task'sList horizontal wordmark</title>
+  <desc id="description">Task'sList layered context-card mark with product name and the tagline Your work, right where it belongs.</desc>
+  <defs>
+    <linearGradient id="background" x1="50" y1="24" x2="1550" y2="396" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#252A2E"/>
+      <stop offset="1" stop-color="#17191B"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="88" y1="94" x2="302" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE17C"/>
+      <stop offset="1" stop-color="#F4CE62"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="1584" height="404" rx="70" fill="url(#background)" stroke="#3A4247" stroke-width="8"/>
+  <g aria-label="Task'sList mark">
+    <rect x="58" y="58" width="304" height="304" rx="72" fill="#17191B" stroke="#3A4247" stroke-width="8"/>
+    <rect x="168" y="108" width="144" height="164" rx="30" fill="#8B6CF6" transform="rotate(8 240 190)"/>
+    <path d="M125 127h130c25 0 45 20 45 45v103l-66 66H125c-26 0-47-21-47-47V174c0-26 21-47 47-47Z" fill="url(#paper)"/>
+    <path d="M234 341v-39c0-15 12-27 27-27h39l-66 66Z" fill="#F19A4B"/>
+    <path d="m127 224 35 35 74-83" fill="none" stroke="#252A2E" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M310 79c4 21 14 31 35 35-21 4-31 14-35 35-4-21-14-31-35-35 21-4 31-14 35-35Z" fill="#F6F2EA"/>
+    <circle cx="332" cy="156" r="9" fill="#72C29B"/>
+  </g>
+  <text x="430" y="203" fill="#F6F2EA" font-family="Segoe UI" font-size="118" font-weight="700" letter-spacing="-4">Task'sList</text>
+  <text x="436" y="276" fill="#B9C2C1" font-family="Segoe UI" font-size="34" font-weight="500" letter-spacing="1">YOUR WORK, RIGHT WHERE IT BELONGS.</text>
+  <g transform="translate(436 314)" font-family="Segoe UI" font-size="20" font-weight="600">
+    <rect width="158" height="46" rx="23" fill="#4A3323"/>
+    <circle cx="24" cy="23" r="6" fill="#F19A4B"/>
+    <text x="42" y="30" fill="#F6F2EA">LOCAL-FIRST</text>
+    <rect x="174" width="220" height="46" rx="23" fill="#302B50"/>
+    <circle cx="198" cy="23" r="6" fill="#8B6CF6"/>
+    <text x="216" y="30" fill="#F6F2EA">CONTEXT-AWARE</text>
+    <rect x="410" width="150" height="46" rx="23" fill="#213B32"/>
+    <circle cx="434" cy="23" r="6" fill="#72C29B"/>
+    <text x="452" y="30" fill="#F6F2EA">EXTENSIBLE</text>
+  </g>
+</svg>

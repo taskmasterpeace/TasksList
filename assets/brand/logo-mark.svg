@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">Task'sList application mark</title>
+  <desc id="description">Layered violet and amber context cards with a task check and action spark on charcoal.</desc>
+  <defs>
+    <linearGradient id="tile" x1="128" y1="96" x2="896" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#252A2E"/>
+      <stop offset="1" stop-color="#17191B"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="274" y1="248" x2="718" y2="824" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE17C"/>
+      <stop offset="1" stop-color="#F4CE62"/>
+    </linearGradient>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="216" fill="url(#tile)" stroke="#3A4247" stroke-width="24"/>
+  <path d="M390 212h320c51 0 92 41 92 92v344c0 51-41 92-92 92H390c-51 0-92-41-92-92V304c0-51 41-92 92-92Z" fill="#8B6CF6" transform="rotate(8 550 476)"/>
+  <path d="M314 256h342c49 0 88 39 88 88v302L578 812H314c-50 0-90-40-90-90V346c0-50 40-90 90-90Z" fill="url(#paper)"/>
+  <path d="M578 812V708c0-34 28-62 62-62h104L578 812Z" fill="#F19A4B"/>
+  <path d="m344 520 82 82 174-194" fill="none" stroke="#252A2E" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M802 164c8 43 29 64 72 72-43 8-64 29-72 72-8-43-29-64-72-72 43-8 64-29 72-72Z" fill="#F6F2EA"/>
+  <circle cx="858" cy="330" r="22" fill="#72C29B"/>
+</svg>
