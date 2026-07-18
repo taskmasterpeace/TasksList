@@ -176,8 +176,8 @@
                                                Foreground="{StaticResource MutedTextBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Button Style="{StaticResource GhostButton}" Content="Drop Markdown here" IsHitTestVisible="False" Margin="0,0,8,0" />
-                                    <Button Style="{StaticResource GhostButton}" Content="Apply style to selected"
+                                    <Button Style="{StaticResource GhostButton}" Content="Drop .md here" IsHitTestVisible="False" Margin="0,0,8,0" />
+                                    <Button Style="{StaticResource GhostButton}" Content="Apply style"
                                             Margin="0,0,8,0" Click="ApplyStyleToSelectedClick" />
                                     <Button Style="{StaticResource PrimaryButton}" Content="＋  New sticky" Click="NewStickyClick" />
                                 </StackPanel>

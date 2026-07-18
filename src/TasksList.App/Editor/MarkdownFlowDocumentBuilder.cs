@@ -4,6 +4,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using TasksList.Core.Markdown;
 using TasksList.Core.Models;
+using TasksList.Core.Notes;
 using TasksList.Infrastructure.Storage;
 
 namespace TasksList.App.Editor;
@@ -15,14 +16,16 @@ public static class MarkdownFlowDocumentBuilder
         Action<int, bool> taskChanged,
         Action<InteractiveBlock, int>? interactiveChanged = null,
         NoteId? noteId = null,
-        TasksListDatabase? database = null)
+        TasksListDatabase? database = null,
+        NotePresentation? presentation = null)
     {
+        var palette = MarkdownPreviewPalette.FromPresentation(presentation);
         var document = new FlowDocument
         {
             PagePadding = new Thickness(16, 12, 16, 18),
             FontFamily = new FontFamily("Aptos, Segoe UI"),
             FontSize = 13,
-            Foreground = new SolidColorBrush(Color.FromRgb(58, 48, 34)),
+            Foreground = palette.TextBrush,
         };
 
         foreach (var block in markdown.Blocks)
@@ -32,7 +35,9 @@ public static class MarkdownFlowDocumentBuilder
                 taskChanged,
                 interactiveChanged,
                 noteId,
-                database));
+                database,
+                presentation,
+                palette));
         }
 
         return document;
@@ -43,20 +48,23 @@ public static class MarkdownFlowDocumentBuilder
         Action<int, bool> taskChanged,
         Action<InteractiveBlock, int>? interactiveChanged,
         NoteId? noteId,
-        TasksListDatabase? database) =>
+        TasksListDatabase? database,
+        NotePresentation? presentation,
+        MarkdownPreviewPalette palette) =>
         block switch
         {
-            MarkdownHeading heading => BuildHeading(heading),
+            MarkdownHeading heading => BuildHeading(heading, palette),
             MarkdownTask task => BuildTask(task, taskChanged),
-            MarkdownCode code => BuildCode(code),
-            MarkdownTable table => BuildTable(table),
+            MarkdownCode code => BuildCode(code, palette),
+            MarkdownTable table => BuildTable(table, palette),
             MarkdownInteractive interactive when
                 interactiveChanged is not null && noteId is not null && database is not null =>
                 InteractiveBlockControls.Build(
                     interactive.Interactive,
                     interactiveChanged,
                     noteId.Value,
-                    database),
+                    database,
+                    presentation ?? NotePresentation.Default(noteId.Value)),
             MarkdownParagraph paragraph => new Paragraph(new Run(paragraph.Text))
             {
                 Margin = new Thickness(0, 3, 0, 7),
@@ -65,13 +73,13 @@ public static class MarkdownFlowDocumentBuilder
             _ => new Paragraph(),
         };
 
-    private static Paragraph BuildHeading(MarkdownHeading heading) =>
+    private static Paragraph BuildHeading(MarkdownHeading heading, MarkdownPreviewPalette palette) =>
         new(new Run(heading.Text))
         {
             FontSize = heading.Level switch { 1 => 23, 2 => 18, _ => 15 },
             FontWeight = FontWeights.Bold,
             Margin = new Thickness(0, heading.Level == 1 ? 3 : 10, 0, 8),
-            Foreground = new SolidColorBrush(Color.FromRgb(46, 39, 28)),
+            Foreground = palette.TextBrush,
         };
 
     private static Paragraph BuildTask(MarkdownTask task, Action<int, bool> taskChanged)
@@ -94,20 +102,20 @@ public static class MarkdownFlowDocumentBuilder
         return paragraph;
     }
 
-    private static Paragraph BuildCode(MarkdownCode code) =>
+    private static Paragraph BuildCode(MarkdownCode code, MarkdownPreviewPalette palette) =>
         new(new Run(code.Code)
         {
             FontFamily = new FontFamily("Cascadia Mono, Consolas"),
             FontSize = 12,
         })
         {
-            Background = new SolidColorBrush(Color.FromArgb(30, 46, 39, 28)),
+            Background = palette.SubtleBrush,
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 6, 0, 8),
             LineHeight = 18,
         };
 
-    private static Table BuildTable(MarkdownTable table)
+    private static Table BuildTable(MarkdownTable table, MarkdownPreviewPalette palette)
     {
         var result = new Table { CellSpacing = 0, Margin = new Thickness(0, 7, 0, 10) };
         for (var index = 0; index < table.ColumnCount; index++)
@@ -124,7 +132,7 @@ public static class MarkdownFlowDocumentBuilder
                 row.Cells.Add(new TableCell(new Paragraph(new Run(value)))
                 {
                     Padding = new Thickness(6, 4, 6, 4),
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(60, 46, 39, 28)),
+                    BorderBrush = palette.BorderBrush,
                     BorderThickness = new Thickness(0, 0, 0, 1),
                     FontWeight = rowIndex == 0 ? FontWeights.SemiBold : FontWeights.Normal,
                 });
@@ -134,4 +142,29 @@ public static class MarkdownFlowDocumentBuilder
         result.RowGroups.Add(group);
         return result;
     }
+}
+
+internal sealed record MarkdownPreviewPalette(
+    SolidColorBrush TextBrush,
+    SolidColorBrush AccentBrush,
+    SolidColorBrush SubtleBrush,
+    SolidColorBrush BorderBrush)
+{
+    public static MarkdownPreviewPalette FromPresentation(NotePresentation? presentation)
+    {
+        var text = SystemParameters.HighContrast
+            ? SystemColors.WindowTextColor
+            : ParseColor(presentation?.TextHex ?? "#3A3022");
+        var accent = SystemParameters.HighContrast
+            ? SystemColors.HighlightColor
+            : ParseColor(presentation?.AccentHex ?? "#8A6117");
+        return new MarkdownPreviewPalette(
+            new SolidColorBrush(text),
+            new SolidColorBrush(accent),
+            new SolidColorBrush(Color.FromArgb(26, text.R, text.G, text.B)),
+            new SolidColorBrush(Color.FromArgb(72, accent.R, accent.G, accent.B)));
+    }
+
+    private static Color ParseColor(string value) =>
+        (Color)ColorConverter.ConvertFromString(value);
 }

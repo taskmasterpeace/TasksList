@@ -125,7 +125,7 @@ public partial class MainWindow : Window
             var presentation = await _database.GetNotePresentationAsync(note.Id);
             if (presentation.DeletedAt is null)
             {
-                _notes.Add(new NoteCardViewModel(note));
+                _notes.Add(new NoteCardViewModel(note, presentation));
             }
         }
 
@@ -1014,23 +1014,22 @@ public partial class MainWindow : Window
 
 public sealed class NoteCardViewModel
 {
-    private static readonly Brush[] Papers =
-    [
-        new SolidColorBrush(Color.FromRgb(245, 206, 91)),
-        new SolidColorBrush(Color.FromRgb(235, 163, 111)),
-        new SolidColorBrush(Color.FromRgb(151, 203, 176)),
-        new SolidColorBrush(Color.FromRgb(166, 184, 222)),
-    ];
-
-    public NoteCardViewModel(Note note)
+    public NoteCardViewModel(Note note, NotePresentation presentation)
     {
         Note = note;
-        var colorIndex = Math.Abs(note.Id.Value.GetHashCode()) % Papers.Length;
-        PaperBrush = Papers[colorIndex];
-        EdgeBrush = new SolidColorBrush(Color.FromArgb(80, 45, 38, 25));
-        InkBrush = new SolidColorBrush(Color.FromRgb(46, 39, 28));
-        MutedInkBrush = new SolidColorBrush(Color.FromRgb(93, 78, 58));
-        StatusBrush = new SolidColorBrush(Color.FromRgb(61, 101, 80));
+        PaperBrush = ParseBrush(presentation.BackgroundHex);
+        InkBrush = ParseBrush(presentation.TextHex);
+        var accent = (SolidColorBrush)ParseBrush(presentation.AccentHex);
+        EdgeBrush = new SolidColorBrush(Color.FromArgb(
+            100,
+            accent.Color.R,
+            accent.Color.G,
+            accent.Color.B));
+        var ink = ((SolidColorBrush)InkBrush).Color;
+        MutedInkBrush = new SolidColorBrush(Color.FromArgb(185, ink.R, ink.G, ink.B));
+        StatusBrush = presentation.Topmost
+            ? accent
+            : new SolidColorBrush(Color.FromArgb(100, ink.R, ink.G, ink.B));
     }
 
     public Note Note { get; }
@@ -1054,6 +1053,9 @@ public sealed class NoteCardViewModel
     public Brush MutedInkBrush { get; }
 
     public Brush StatusBrush { get; }
+
+    private static Brush ParseBrush(string hex) =>
+        new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
 }
 
 public sealed class ClipboardCardViewModel

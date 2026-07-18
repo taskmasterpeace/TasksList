@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using TasksList.Core.Markdown;
 using TasksList.Core.Models;
+using TasksList.Core.Notes;
 using TasksList.Infrastructure.Storage;
 
 namespace TasksList.App.Editor;
@@ -16,14 +17,16 @@ public static class InteractiveBlockControls
         InteractiveBlock block,
         Action<InteractiveBlock, int> valueChanged,
         NoteId noteId,
-        TasksListDatabase database)
+        TasksListDatabase database,
+        NotePresentation presentation)
     {
+        var theme = InteractiveBlockTheme.FromPresentation(presentation);
         UIElement control = block switch
         {
-            ProgressInteractiveBlock progress => Progress(progress, valueChanged),
-            CounterInteractiveBlock counter => Counter(counter, valueChanged),
-            TimerInteractiveBlock timer => new InteractiveTimerControl(timer, noteId, database),
-            _ => new TextBlock { Text = block.Label },
+            ProgressInteractiveBlock progress => Progress(progress, valueChanged, theme),
+            CounterInteractiveBlock counter => Counter(counter, valueChanged, theme),
+            TimerInteractiveBlock timer => new InteractiveTimerControl(timer, noteId, database, theme),
+            _ => new TextBlock { Text = block.Label, Foreground = theme.Ink },
         };
         return new BlockUIContainer(control)
         {
@@ -33,13 +36,14 @@ public static class InteractiveBlockControls
 
     private static UIElement Progress(
         ProgressInteractiveBlock block,
-        Action<InteractiveBlock, int> changed)
+        Action<InteractiveBlock, int> changed,
+        InteractiveBlockTheme theme)
     {
         var valueText = new TextBlock
         {
             Text = $"{block.Value}%",
             FontWeight = FontWeights.SemiBold,
-            Foreground = Ink,
+            Foreground = theme.Ink,
         };
         var slider = new Slider
         {
@@ -55,12 +59,13 @@ public static class InteractiveBlockControls
             valueText.Text = $"{value}%";
             changed(block, value);
         };
-        return Card(block.Label, valueText, slider);
+        return Card(block.Label, theme, valueText, slider);
     }
 
     private static UIElement Counter(
         CounterInteractiveBlock block,
-        Action<InteractiveBlock, int> changed)
+        Action<InteractiveBlock, int> changed,
+        InteractiveBlockTheme theme)
     {
         var value = block.Value;
         var valueText = new TextBlock
@@ -68,13 +73,13 @@ public static class InteractiveBlockControls
             Text = value.ToString(),
             FontSize = 19,
             FontWeight = FontWeights.Bold,
-            Foreground = Ink,
+            Foreground = theme.Ink,
             MinWidth = 46,
             TextAlignment = TextAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        var minus = MiniButton("−", "Decrease counter");
-        var plus = MiniButton("+", "Increase counter");
+        var minus = MiniButton("−", "Decrease counter", theme);
+        var plus = MiniButton("+", "Increase counter", theme);
         minus.Click += (_, _) =>
         {
             value--;
@@ -91,24 +96,24 @@ public static class InteractiveBlockControls
         controls.Children.Add(minus);
         controls.Children.Add(valueText);
         controls.Children.Add(plus);
-        return Card(block.Label, controls);
+        return Card(block.Label, theme, controls);
     }
 
-    private static Border Card(string label, params UIElement[] content)
+    private static Border Card(string label, InteractiveBlockTheme theme, params UIElement[] content)
     {
         var panel = new StackPanel();
         var header = new TextBlock
         {
             Text = label,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Ink,
+            Foreground = theme.Ink,
         };
         panel.Children.Add(header);
         foreach (var item in content) panel.Children.Add(item);
         return new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(22, 45, 40, 30)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(42, 45, 40, 30)),
+            Background = theme.Surface,
+            BorderBrush = theme.Border,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(12, 10, 12, 10),
@@ -116,7 +121,10 @@ public static class InteractiveBlockControls
         };
     }
 
-    internal static Button MiniButton(string content, string automationName) => new()
+    internal static Button MiniButton(
+        string content,
+        string automationName,
+        InteractiveBlockTheme theme) => new()
     {
         Content = content,
         MinWidth = 38,
@@ -124,12 +132,35 @@ public static class InteractiveBlockControls
         Margin = new Thickness(4, 0, 4, 0),
         Padding = new Thickness(8, 3, 8, 3),
         ToolTip = automationName,
+        Foreground = theme.Ink,
+        Background = theme.ButtonSurface,
+        BorderBrush = theme.Border,
     };
-
-    private static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(58, 48, 34));
 }
 
-public sealed class InteractiveTimerControl : Border
+internal sealed record InteractiveBlockTheme(
+    Brush Ink,
+    Brush Surface,
+    Brush Border,
+    Brush ButtonSurface)
+{
+    public static InteractiveBlockTheme FromPresentation(NotePresentation presentation)
+    {
+        var text = SystemParameters.HighContrast
+            ? SystemColors.WindowTextColor
+            : (Color)ColorConverter.ConvertFromString(presentation.TextHex);
+        var accent = SystemParameters.HighContrast
+            ? SystemColors.HighlightColor
+            : (Color)ColorConverter.ConvertFromString(presentation.AccentHex);
+        return new InteractiveBlockTheme(
+            new SolidColorBrush(text),
+            new SolidColorBrush(Color.FromArgb(22, text.R, text.G, text.B)),
+            new SolidColorBrush(Color.FromArgb(86, accent.R, accent.G, accent.B)),
+            new SolidColorBrush(Color.FromArgb(38, accent.R, accent.G, accent.B)));
+    }
+}
+
+internal sealed class InteractiveTimerControl : Border
 {
     private readonly TimerInteractiveBlock _block;
     private readonly NoteId _noteId;
@@ -142,15 +173,16 @@ public sealed class InteractiveTimerControl : Border
     public InteractiveTimerControl(
         TimerInteractiveBlock block,
         NoteId noteId,
-        TasksListDatabase database)
+        TasksListDatabase database,
+        InteractiveBlockTheme theme)
     {
         _block = block;
         _noteId = noteId;
         _database = database;
         _state = InteractiveTimerState.Default(noteId, block.TypeIndex, block.Minutes, DateTimeOffset.Now);
 
-        Background = new SolidColorBrush(Color.FromArgb(22, 45, 40, 30));
-        BorderBrush = new SolidColorBrush(Color.FromArgb(42, 45, 40, 30));
+        Background = theme.Surface;
+        BorderBrush = theme.Border;
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(10);
         Padding = new Thickness(12, 10, 12, 10);
@@ -163,21 +195,21 @@ public sealed class InteractiveTimerControl : Border
         {
             Text = block.Label,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromRgb(58, 48, 34)),
+            Foreground = theme.Ink,
         });
         _timeText = new TextBlock
         {
             FontSize = 22,
             FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(58, 48, 34)),
+            Foreground = theme.Ink,
             Margin = new Thickness(0, 4, 0, 0),
         };
         labels.Children.Add(_timeText);
         root.Children.Add(labels);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        _startPause = InteractiveBlockControls.MiniButton("Start", "Start or pause timer");
-        var reset = InteractiveBlockControls.MiniButton("Reset", "Reset timer");
+        _startPause = InteractiveBlockControls.MiniButton("Start", "Start or pause timer", theme);
+        var reset = InteractiveBlockControls.MiniButton("Reset", "Reset timer", theme);
         _startPause.Click += StartPauseClick;
         reset.Click += ResetClick;
         buttons.Children.Add(_startPause);

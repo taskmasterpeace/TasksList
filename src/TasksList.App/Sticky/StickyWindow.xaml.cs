@@ -956,7 +956,8 @@ public partial class StickyWindow : Window
         ToggleTaskFromPreview,
         UpdateInteractiveBlock,
         _note.Id,
-        _database);
+        _database,
+        _controller.Presentation);
 
     private void UpdateInteractiveBlock(InteractiveBlock block, int value)
     {
