@@ -26,13 +26,70 @@
                 <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.72" /></Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="PaletteComboItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#E8E4DC" />
+            <Setter Property="Background" Value="#252A2E" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True"><Setter Property="Background" Value="#394044" /></Trigger>
+                <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#4A3323" /><Setter Property="Foreground" Value="#FFD7AA" /></Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="PaletteCombo" TargetType="ComboBox">
             <Setter Property="Foreground" Value="#E8E4DC" />
             <Setter Property="Background" Value="#252A2E" />
             <Setter Property="BorderBrush" Value="#41494E" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="8,5" />
-            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource PaletteComboItem}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ComboSurface" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7">
+                                            <Grid>
+                                                <ContentPresenter Margin="10,0,32,0" VerticalAlignment="Center"
+                                                                  HorizontalAlignment="Left" />
+                                                <TextBlock Text="⌄" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Margin="0,-3,11,0" Foreground="#AEB8B7" FontSize="16" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ComboSurface" Property="Background" Value="#333A3E" /></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Margin="10,0,32,0" VerticalAlignment="Center"
+                                              HorizontalAlignment="Left" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding ItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" />
+                            <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Border Background="#252A2E" BorderBrush="#505A6165" BorderThickness="1"
+                                        CornerRadius="7" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="320" Margin="0,3,0,0">
+                                    <ScrollViewer Margin="3" SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
     <Border Background="#F217191B" BorderBrush="#505A6165" BorderThickness="1" CornerRadius="14">
@@ -68,8 +125,12 @@
                     <ComboBoxItem Content="Today" Tag="Today" /><ComboBoxItem Content="Last 7 days" Tag="7" />
                     <ComboBoxItem Content="Last 30 days" Tag="30" />
                 </ComboBox>
-                <ComboBox x:Name="SourceFilter" Grid.Column="8" Style="{StaticResource PaletteCombo}" DisplayMemberPath="DisplayName"
-                          SelectionChanged="FilterChanged" ToolTip="Source application" />
+                <ComboBox x:Name="SourceFilter" Grid.Column="8" Style="{StaticResource PaletteCombo}"
+                          SelectionChanged="FilterChanged" ToolTip="Source application">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </Grid>
 
             <Grid Grid.Row="2" Margin="20,0">
@@ -119,8 +180,12 @@
                         </Grid>
                         <Grid Grid.Row="2" Margin="0,12,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
-                            <ComboBox x:Name="PlaceBox" Style="{StaticResource PaletteCombo}" DisplayMemberPath="Name"
-                                      ToolTip="Assign selected clips to a Place or note" />
+                            <ComboBox x:Name="PlaceBox" Style="{StaticResource PaletteCombo}"
+                                      ToolTip="Assign selected clips to a Place or note">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <Button Grid.Column="2" Content="Assign selected" Style="{StaticResource ActionButton}" Click="AssignClick" />
                         </Grid>
                     </Grid>
