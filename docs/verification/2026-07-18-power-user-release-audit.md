@@ -1,8 +1,8 @@
 # Task'sList 1.1.0 Power-User Release Audit
 
 **Date:** 2026-07-18  
-**Artifact source commit:** `7f278182702f931778571929d071df...`  
-**Installed executable SHA-256:** `347f6f530d73d5edb593c1d051f9e88edd1b61b1b57b2b4054e062c296437962`
+**Artifact source commit:** `7618fe0ed4bdab9bc0da74e7c63233771af0810b`  
+**Installed executable SHA-256:** `8ff2d34bf00df0702e7f9caf4ef56e7b530a30859a42707fc593bcf034bec944`
 
 ## Release evidence
 
