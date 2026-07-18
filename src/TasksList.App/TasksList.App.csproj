@@ -3,10 +3,15 @@
   <ItemGroup>
     <ProjectReference Include="..\TasksList.Core\TasksList.Core.csproj" />
     <ProjectReference Include="..\TasksList.Infrastructure\TasksList.Infrastructure.csproj" />
+    <ProjectReference Include="..\TasksList.PluginSdk\TasksList.PluginSdk.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="..\..\themes\default\theme.json" Link="themes\default\theme.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="8.0.23" />
   </ItemGroup>
 
   <PropertyGroup>

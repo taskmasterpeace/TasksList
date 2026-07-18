@@ -22,7 +22,7 @@ public partial class App : Application
         {
             LoadUserTheme(dataDirectory);
             await database.InitializeAsync();
-            var window = new MainWindow(database);
+            var window = new MainWindow(database, dataDirectory);
             MainWindow = window;
             window.Show();
         }

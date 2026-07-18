@@ -1,0 +1,9 @@
+{
+  "id": "taskslist.developer-workspace",
+  "name": "Developer Workspace",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "entryPoint": "TasksList.Plugin.DeveloperWorkspace.exe",
+  "capabilities": ["process.read", "files.read.selected", "notes.write"]
+}
+

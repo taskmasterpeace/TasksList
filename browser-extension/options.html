@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task'sList Browser Context</title>
+  <style>
+    body { margin: 0; background: #17191b; color: #f6f2ea; font: 14px/1.55 system-ui, sans-serif; }
+    main { max-width: 680px; margin: 56px auto; padding: 28px; background: #1e2225; border: 1px solid #3a4247; border-radius: 14px; }
+    h1 { margin: 0 0 8px; font-size: 25px; }
+    p { color: #a9b2b1; }
+    .permission { margin-top: 20px; padding: 15px; background: #252a2e; border-radius: 10px; }
+    strong { color: #f19a4b; }
+    button { border: 0; border-radius: 10px; padding: 10px 15px; background: #f19a4b; color: #21170e; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Task'sList Browser Context</h1>
+    <p>This companion reports the identity of your non-private tabs to the local Task'sList application. Page contents are not read.</p>
+    <div class="permission"><strong>Granted:</strong> tab title, URL, window, ordering, active state, and pinned state.</div>
+    <div class="permission"><strong>Blocked:</strong> private windows, page bodies, passwords, form values, cookies, and browsing history.</div>
+    <p><button id="refresh">Refresh Task'sList now</button></p>
+    <p id="status"></p>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
+

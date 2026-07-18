@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Task'sList Browser Context",
+  "version": "1.0.0",
+  "description": "Attaches Task'sList notes, clipboard captures, and saved sessions to browser tabs and conversations.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4AMlAtFl1NX+Q1GRRyJfj24wbQKB3krLrO1y6F7uMyYgzyCpnWN5IeIxuLymbWYZwfcZP3BaSIEJgmiQNZgVhWlKsJJPis0FcvQTnf1hTQOE78NJvU/S7spB7MW+XUre9qFnwLnol9vVyhei/qN8PuCTx2LrGare55IiqyzZCfV5ZjLnU1gcFTya8leg9n51SuE+qWjaHFicwMctYvlQbOoWUrduRF0+rqeQyxoa+0z8l1FUQbuiu04JB3gBaGt7+Kvg19PeKrA5UV1cNTLcIJcbOHxuY11uu0LDIDk9UDDt177EwZqdeNGS1GZhzF1fT/+MHId7mvEbOD50tTBieQIDAQAB",
+  "permissions": ["tabs", "nativeMessaging", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Task'sList Browser Context"
+  },
+  "incognito": "not_allowed"
+}

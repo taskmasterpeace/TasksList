@@ -1,14 +1,19 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using TasksList.App.Sticky;
 using TasksList.App.Clipboard;
+using TasksList.App.Capture;
 using TasksList.App.Places;
+using TasksList.App.Plugins;
 using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
+using CaptureModel = TasksList.Core.Models.Capture;
 
 namespace TasksList.App;
 
@@ -20,8 +25,11 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<PlaceCardViewModel> _placeCards = [];
     private readonly Dictionary<NoteId, StickyWindow> _openStickies = [];
     private readonly ClipboardMonitor _clipboardMonitor;
+    private readonly BrowserBridgeMonitor _browserBridgeMonitor;
+    private readonly PayloadStore _payloadStore;
+    private IReadOnlyList<LiveBrowserTab> _liveBrowserTabs = [];
 
-    public MainWindow(TasksListDatabase database)
+    public MainWindow(TasksListDatabase database, string? dataDirectory = null)
     {
         _database = database;
         InitializeComponent();
@@ -29,8 +37,21 @@ public partial class MainWindow : Window
         ClipboardList.ItemsSource = _clipboardCards;
         PlacesList.ItemsSource = _placeCards;
         _clipboardMonitor = new ClipboardMonitor(this, CaptureClipboardAsync);
+        var resolvedDataDirectory = dataDirectory ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "TasksList");
+        _payloadStore = new PayloadStore(Path.Combine(resolvedDataDirectory, "payloads"));
+        var browserBridgePath = Path.Combine(
+            resolvedDataDirectory,
+            "bridge",
+            "browser-tabs.json");
+        _browserBridgeMonitor = new BrowserBridgeMonitor(browserBridgePath, BrowserSnapshotChangedAsync);
         Loaded += OnLoaded;
-        Closed += (_, _) => _clipboardMonitor.Dispose();
+        Closed += (_, _) =>
+        {
+            _clipboardMonitor.Dispose();
+            _browserBridgeMonitor.Dispose();
+        };
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -75,6 +96,36 @@ public partial class MainWindow : Window
         OpenSticky(note);
     }
 
+    private async void CaptureRegionClick(object sender, RoutedEventArgs e)
+    {
+        var source = ForegroundContextReader.Read();
+        var overlay = new CaptureOverlay();
+        if (overlay.ShowDialog() != true || overlay.Result is not { } result)
+        {
+            return;
+        }
+
+        var payload = await _payloadStore.PutAsync(result.PngBytes, "image/png");
+        await _database.SaveContextAsync(source);
+        var capture = CaptureModel.Create(
+                CaptureKind.Image,
+                source.Id,
+                $"Screen capture · {result.PixelWidth} × {result.PixelHeight}",
+                DateTimeOffset.Now)
+            .WithTextRepresentation("application/x-taskslist-payload-path", payload.Path);
+        await _database.SaveCaptureAsync(capture);
+        var note = Note.Create(
+                $"Capture from {source.DisplayName}",
+                $"# Screen capture\n\n![Captured region](<{payload.Path}>)\n\n" +
+                $"**Source:** {source.DisplayName}\n\n" +
+                $"**Size:** {result.PixelWidth} × {result.PixelHeight}")
+            .AttachTo(source.Id, AttachmentVisibility.WhilePresent);
+        await _database.SaveNoteAsync(note);
+        await ReloadClipboardAsync();
+        await ReloadNotesAsync();
+        OpenSticky(note);
+    }
+
     private void OpenNoteClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: NoteCardViewModel card })
@@ -106,7 +157,7 @@ public partial class MainWindow : Window
     private async Task CaptureClipboardAsync(ClipboardSnapshot snapshot)
     {
         await _database.SaveContextAsync(snapshot.Source);
-        var capture = Capture.Create(
+        var capture = CaptureModel.Create(
             snapshot.Kind,
             snapshot.Source.Id,
             snapshot.PreviewText,
@@ -148,6 +199,40 @@ public partial class MainWindow : Window
             }
             _placeCards.Add(new PlaceCardViewModel(place, depth));
         }
+
+        if (_liveBrowserTabs.Count > 0)
+        {
+            var browserPlaceId = DeterministicPlaceId("browser:chromium");
+            var browser = new Place(browserPlaceId, PlaceKind.Browser, "Browser · Open now", null, "browser:chromium");
+            _placeCards.Insert(0, new PlaceCardViewModel(browser, 0, $"{_liveBrowserTabs.Count} TABS"));
+            var insertionIndex = 1;
+            foreach (var tab in _liveBrowserTabs)
+            {
+                var place = new Place(
+                    DeterministicPlaceId($"browser-tab:{tab.WindowId}:{tab.Id}"),
+                    tab.Kind,
+                    tab.Title,
+                    browserPlaceId,
+                    tab.Url);
+                _placeCards.Insert(insertionIndex++, new PlaceCardViewModel(place, 1, tab.IsActive ? "ACTIVE" : string.Empty));
+            }
+        }
+    }
+
+    private async Task BrowserSnapshotChangedAsync(LiveBrowserSnapshot snapshot)
+    {
+        await await Dispatcher.InvokeAsync(async () =>
+        {
+            _liveBrowserTabs = snapshot.Tabs;
+            await ReloadPlacesAsync();
+            StatusText.Text = $"BROWSER · {snapshot.Tabs.Count} OPEN TABS";
+        });
+    }
+
+    private static PlaceId DeterministicPlaceId(string identity)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToUpperInvariant()));
+        return new PlaceId(new Guid(hash.AsSpan(0, 16)));
     }
 
     private async void NewPlaceClick(object sender, RoutedEventArgs e)
@@ -166,6 +251,13 @@ public partial class MainWindow : Window
             $"manual:{Guid.NewGuid():N}");
         await _database.SavePlaceAsync(place);
         await ReloadPlacesAsync();
+    }
+
+    private void PluginsClick(object sender, RoutedEventArgs e)
+    {
+        var catalog = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
+        var window = new PluginManagerWindow(catalog) { Owner = this };
+        window.ShowDialog();
     }
 
     private async void ClipToNoteClick(object sender, RoutedEventArgs e)
@@ -324,13 +416,13 @@ public sealed class NoteCardViewModel
 
 public sealed class ClipboardCardViewModel
 {
-    public ClipboardCardViewModel(Capture capture, ContextRef? source)
+    public ClipboardCardViewModel(CaptureModel capture, ContextRef? source)
     {
         Capture = capture;
         SourceName = source?.DisplayName ?? "Unknown application";
     }
 
-    public Capture Capture { get; }
+    public CaptureModel Capture { get; }
 
     public string Preview => Capture.PreviewText.Replace("\r", string.Empty, StringComparison.Ordinal).Trim();
 
@@ -351,10 +443,11 @@ public sealed class ClipboardCardViewModel
 
 public sealed class PlaceCardViewModel
 {
-    public PlaceCardViewModel(Place place, int depth)
+    public PlaceCardViewModel(Place place, int depth, string? kindLabel = null)
     {
         Place = place;
         Prefix = depth == 0 ? "▾" : new string(' ', depth * 2) + "↳";
+        KindLabel = kindLabel ?? (place.Kind == PlaceKind.BrowserSession ? "SESSION" : string.Empty);
     }
 
     public Place Place { get; }
@@ -365,5 +458,5 @@ public sealed class PlaceCardViewModel
 
     public string StableIdentity => Place.StableIdentity;
 
-    public string KindLabel => Place.Kind == PlaceKind.BrowserSession ? "SESSION" : string.Empty;
+    public string KindLabel { get; }
 }

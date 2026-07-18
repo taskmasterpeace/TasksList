@@ -1,0 +1,72 @@
+<Window x:Class="TasksList.App.Plugins.PluginManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Task'sList plugins"
+        Width="720" Height="590" MinWidth="620" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent">
+    <Border Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1" CornerRadius="14">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="64" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBarMouseDown">
+                <Grid Margin="20,0,12,0">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Plugins &amp; permissions" FontSize="18" FontWeight="Bold" />
+                        <TextBlock Text="Capabilities are denied until you grant them." FontSize="10"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </StackPanel>
+                    <Button Style="{StaticResource GhostButton}" Content="×" Width="36" Height="36"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Click="CloseClick" />
+                </Grid>
+            </Border>
+            <Border Grid.Row="1" Background="#302A22" CornerRadius="10" Margin="18,16,18,4" Padding="12">
+                <TextBlock Text="Bundled plugins run outside the main note process. Plugin operations are validated, logged, and undoable."
+                           Foreground="#D8C9B7" TextWrapping="Wrap" FontSize="11" />
+            </Border>
+            <ScrollViewer Grid.Row="2" Margin="18,12" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="PluginList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="10" Margin="0,0,0,10" Padding="15">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Version}" Foreground="{StaticResource MutedTextBrush}"
+                                                       FontSize="10" Margin="8,3,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Id}" FontSize="9" Foreground="#778285" Margin="0,3,0,8" />
+                                        <TextBlock Text="{Binding Capabilities}" Foreground="{StaticResource MutedTextBrush}"
+                                                   FontSize="10" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="REVIEW"
+                                            FontSize="9" FontWeight="Bold" Tag="{Binding}" Click="ReviewClick"
+                                            VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+            <Grid Grid.Row="3" Margin="18,4,18,16">
+                <TextBlock x:Name="CatalogStatus" Foreground="{StaticResource MutedTextBrush}" FontSize="10"
+                           VerticalAlignment="Center" />
+                <Button Style="{StaticResource PrimaryButton}" Content="Install local .taskplugin"
+                        HorizontalAlignment="Right" Click="InstallClick" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+

@@ -1,0 +1,9 @@
+{
+  "id": "taskslist.capture-workflows",
+  "name": "Capture Workflows",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "entryPoint": "TasksList.Plugin.CaptureWorkflows.exe",
+  "capabilities": ["clipboard.read", "screen.capture", "notes.write"]
+}
+
