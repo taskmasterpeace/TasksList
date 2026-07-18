@@ -97,6 +97,30 @@ Each attachment declares its visibility behavior:
 - remain visible after the context closes;
 - sleep when the context closes and return when it reopens.
 
+### Places, browser sessions, and filing
+
+Task'sList organizes work into **Places**. A Place is a user-facing container backed by a live context when one is available. Built-in place types are Computer, Application, Browser, Browser Window, Browser Session, Browser Tab, Conversation, Project, Folder, File, and Manual Group.
+
+Places form a tree. Task'sList creates detected children automatically and users can add manual groups or subgroups anywhere below a place. A Browser place therefore behaves like a recoverable browser workspace rather than a flat bookmark list:
+
+```text
+Microsoft Edge
+├── Open now
+│   ├── ChatGPT · Task'sList design
+│   └── Docker documentation
+├── Saved sessions
+│   └── Release research · 12 tabs
+└── Manual groups
+    ├── Read later
+    └── Deployment references
+```
+
+With the Browser Context plugin enabled, the Open now group mirrors every open browser window and tab. Users can save one tab, a window, a selected set, or the complete browser state into a named session. Saved tabs retain title, normalized URL, favicon, original window/group ordering, timestamps, and associated notes. Restoring a session never closes unrelated open tabs and warns before opening an unusually large set.
+
+Every note and capture can be assigned to zero or more Places. Assignment never overwrites provenance: a clipboard item copied from a particular application, window, tab, URL, or conversation continues to show that source even after the user files it under a different project, note, or manual group. Notes can contain pinned references to clipboard items without duplicating their payloads. Removing an assignment does not delete the source capture.
+
+The clipboard view supports **Unfiled**, **By source**, **By place**, **Favorites**, and user-defined saved filters. Dragging a clipboard item onto a note embeds a live reference; dragging it onto a Place files it there; holding the copy modifier creates an independent note instead. Multi-select filing and bulk unfile operations are supported.
+
 ## Interface
 
 Task'sList runs primarily from the Windows notification area and global shortcuts. It exposes four surfaces:
@@ -203,6 +227,7 @@ The recommended implementation is a native Windows application using modern .NET
 Primary components:
 
 - **Task'sList Host:** lifecycle, notification-area integration, shortcuts, settings, command routing, permissions, and plugin supervision;
+- **Place Service:** hierarchical application/browser/manual places, saved browser sessions, filing, and source-preserving assignments;
 - **Sticky Window Service:** independent note windows, positioning, always-on-top behavior, click-through, context visibility, and monitor recovery;
 - **Editor:** rich-text/Markdown document model, serialization, embeds, undo, and file synchronization;
 - **Clipboard Service:** Windows clipboard listener, multi-format ingestion, exclusions, retention, deduplication, and paste routing;
@@ -223,6 +248,9 @@ Principal records:
 - `Attachment`: note, context identity, match strategy, visibility rule, and relative placement;
 - `Context`: provider, type, stable identity, display metadata, sensitivity, and last seen time;
 - `Capture`: kind, representations, source context, timestamps, hashes, derived metadata, and retention policy;
+- `Place`: provider, type, parent, stable identity, display metadata, ordering, and saved/live state;
+- `Assignment`: a many-to-many link from a note or capture to a Place, including user/plugin actor and filing time;
+- `SavedTab`: saved session, normalized URL, title, favicon, window/group ordering, and associated live context when open;
 - `Payload`: content hash, media type, storage location, size, encryption state, and reference count;
 - `Workflow`: trigger, typed nodes, edges, permissions, and enabled state;
 - `Plugin`: package identity, version, compatibility, grants, settings, and health;
@@ -262,10 +290,12 @@ The first complete release is successful when a user can:
 6. Capture and search large clipboard histories containing text, HTML, images, and files.
 7. Paste original or plain text, compare clips, favorite clips, and turn a clip into a sticky.
 8. Capture and annotate a screen region, OCR it, and attach it to a note or context.
-9. Install, disable, update, and uninstall a packaged plugin with visible permissions.
-10. Use all three showcase plugins to exercise context, automation, custom blocks, and guarded actions.
-11. Install or edit a theme file and recover safely from an invalid theme.
-12. Use core notes and clipboard history with every plugin and AI provider disabled.
+9. See open browser windows and tabs as places, save and restore tab sessions, and create manual subgroups.
+10. File a clipboard item or note into multiple places while preserving and displaying its original source.
+11. Install, disable, update, and uninstall a packaged plugin with visible permissions.
+12. Use all three showcase plugins to exercise context, automation, custom blocks, and guarded actions.
+13. Install or edit a theme file and recover safely from an invalid theme.
+14. Use core notes and clipboard history with every plugin and AI provider disabled.
 
 ## Explicit non-goals for the first release
 
@@ -296,4 +326,3 @@ The first complete release is successful when a user can:
 6. Plugin SDK, isolated host, package manager, permissions, and activity log.
 7. Browser Context, Developer Workspace, and Capture Workflows plugins.
 8. Optional AI gateway, packaging, performance hardening, accessibility, and release validation.
-
