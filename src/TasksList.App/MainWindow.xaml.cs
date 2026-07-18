@@ -20,6 +20,7 @@ using TasksList.Core.Contexts;
 using TasksList.Core.Notes;
 using TasksList.Core.Clipboard;
 using TasksList.App.Shell;
+using TasksList.App.Library;
 
 namespace TasksList.App;
 
@@ -29,6 +30,9 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<NoteCardViewModel> _notes = [];
     private readonly ObservableCollection<ClipboardCardViewModel> _clipboardCards = [];
     private readonly ObservableCollection<PlaceCardViewModel> _placeCards = [];
+    private readonly ObservableCollection<ContextLibraryRow> _contextCards = [];
+    private readonly ObservableCollection<ExtensionLibraryRow> _extensionCards = [];
+    private readonly ObservableCollection<TrashCardViewModel> _trashCards = [];
     private readonly Dictionary<NoteId, StickyWindow> _openStickies = [];
     private readonly HashSet<NoteId> _openingStickies = [];
     private readonly ClipboardMonitor _clipboardMonitor;
@@ -46,6 +50,8 @@ public partial class MainWindow : Window
     private bool _promoteDuplicateClips = true;
     private double _paletteWidth = 940;
     private double _paletteHeight = 610;
+    private int _snapTolerance = 12;
+    private bool _reduceMotion;
 
     public event Action<double, double>? ClipboardPaletteSizeChanged;
 
@@ -56,6 +62,9 @@ public partial class MainWindow : Window
         NotesList.ItemsSource = _notes;
         ClipboardList.ItemsSource = _clipboardCards;
         PlacesList.ItemsSource = _placeCards;
+        ContextsList.ItemsSource = _contextCards;
+        ExtensionsList.ItemsSource = _extensionCards;
+        TrashList.ItemsSource = _trashCards;
         _clipboardMonitor = new ClipboardMonitor(this, CaptureClipboardAsync);
         _clipboardPasteService = new ClipboardPasteService(
             new WindowsClipboardPastePlatform(),
@@ -89,6 +98,7 @@ public partial class MainWindow : Window
         await ReloadNotesAsync(createWelcomeNote: true);
         await ReloadClipboardAsync();
         await ReloadPlacesAsync();
+        await ReloadLibraryAuxiliaryAsync();
         _contextTimer.Start();
     }
 
@@ -111,7 +121,11 @@ public partial class MainWindow : Window
         _notes.Clear();
         foreach (var note in notes)
         {
-            _notes.Add(new NoteCardViewModel(note));
+            var presentation = await _database.GetNotePresentationAsync(note.Id);
+            if (presentation.DeletedAt is null)
+            {
+                _notes.Add(new NoteCardViewModel(note));
+            }
         }
 
         NoteCountText.Text = _notes.Count.ToString();
@@ -253,6 +267,8 @@ public partial class MainWindow : Window
         _promoteDuplicateClips = settings.PromoteDuplicateClips;
         _paletteWidth = settings.ClipboardPaletteWidth;
         _paletteHeight = settings.ClipboardPaletteHeight;
+        _snapTolerance = settings.SnapTolerance;
+        _reduceMotion = settings.ReduceMotion;
     }
 
     public void PrepareForExit()
@@ -272,10 +288,72 @@ public partial class MainWindow : Window
 
     private void OpenNoteClick(object sender, RoutedEventArgs e)
     {
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ||
+            Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return;
+        }
         if (sender is Button { Tag: NoteCardViewModel card })
         {
             OpenSticky(card.Note);
         }
+    }
+
+    private async void ApplyStyleToSelectedClick(object sender, RoutedEventArgs e)
+    {
+        var selected = NotesList.SelectedItems.Cast<NoteCardViewModel>().ToArray();
+        if (selected.Length == 0)
+        {
+            MessageBox.Show(
+                this,
+                "Select one or more note cards first. Use Ctrl+click or Shift+click to select several.",
+                "Apply note style",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var menu = new ContextMenu { PlacementTarget = sender as Button };
+        foreach (var preset in Enum.GetValues<PaperPreset>())
+        {
+            var item = new MenuItem { Header = preset.ToString(), Tag = NoteStyle.FromPreset(preset) };
+            item.Click += async (_, _) => await ApplyStyleToNotesAsync(selected, (NoteStyle)item.Tag);
+            menu.Items.Add(item);
+        }
+
+        var namedStyles = await _database.ListNamedStylesAsync();
+        if (namedStyles.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+            foreach (var namedStyle in namedStyles)
+            {
+                var item = new MenuItem
+                {
+                    Header = $"Saved · {namedStyle.Name}",
+                    Tag = namedStyle.Style,
+                };
+                item.Click += async (_, _) => await ApplyStyleToNotesAsync(selected, (NoteStyle)item.Tag);
+                menu.Items.Add(item);
+            }
+        }
+        menu.IsOpen = true;
+    }
+
+    private async Task ApplyStyleToNotesAsync(
+        IReadOnlyList<NoteCardViewModel> selected,
+        NoteStyle style)
+    {
+        foreach (var card in selected)
+        {
+            var presentation = await _database.GetNotePresentationAsync(card.Note.Id);
+            var updated = presentation.ApplyStyle(style) with { ModifiedAt = DateTimeOffset.Now };
+            await _database.SaveNotePresentationAsync(updated);
+            if (_openStickies.TryGetValue(card.Note.Id, out var sticky))
+            {
+                sticky.ApplyExternalStyle(style);
+            }
+        }
+        StatusText.Text = $"STYLED · {selected.Count} NOTE{(selected.Count == 1 ? string.Empty : "S")}";
     }
 
     private async void OpenSticky(Note note)
@@ -362,7 +440,9 @@ public partial class MainWindow : Window
                 () => _openStickies
                     .Where(pair => pair.Key != note.Id)
                     .Select(pair => pair.Value.CurrentBounds)
-                    .ToArray());
+                    .ToArray(),
+                () => _snapTolerance,
+                () => _reduceMotion);
             sticky.NoteSaved += async (_, _) => await ReloadNotesAsync();
             sticky.NewStickyRequested += async () =>
                 await CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
@@ -398,7 +478,11 @@ public partial class MainWindow : Window
                 await ReloadNotesAsync();
                 OpenSticky(duplicate);
             };
-            sticky.ArchiveRequested += async _ => await ReloadNotesAsync();
+            sticky.ArchiveRequested += async _ =>
+            {
+                await ReloadNotesAsync();
+                await ReloadTrashAsync();
+            };
             sticky.Closed += (_, _) => _openStickies.Remove(note.Id);
             _openStickies[note.Id] = sticky;
             sticky.Show();
@@ -596,6 +680,53 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ReloadLibraryAuxiliaryAsync()
+    {
+        var contexts = await _database.ListContextsAsync();
+        var catalog = LoadPluginCatalog();
+        var data = LibraryDataBuilder.Build(contexts, _liveBrowserTabs, catalog.Plugins);
+
+        _contextCards.Clear();
+        foreach (var context in data.Contexts)
+        {
+            _contextCards.Add(context);
+        }
+        ContextsEmptyText.Text = data.ContextsEmptyMessage;
+
+        _extensionCards.Clear();
+        foreach (var extension in data.Extensions)
+        {
+            _extensionCards.Add(extension);
+        }
+        ExtensionsEmptyText.Text = data.ExtensionsEmptyMessage;
+
+        await ReloadTrashAsync();
+    }
+
+    private async Task ReloadTrashAsync()
+    {
+        var now = DateTimeOffset.Now;
+        var cards = new List<TrashCardViewModel>();
+        foreach (var note in await _database.ListNotesAsync())
+        {
+            var presentation = await _database.GetNotePresentationAsync(note.Id);
+            if (presentation.DeletedAt is { } deletedAt)
+            {
+                cards.Add(TrashCardViewModel.ForNote(note, deletedAt, now));
+            }
+        }
+        foreach (var capture in (await _database.ListCapturesAsync()).Where(item => item.DeletedAt is not null))
+        {
+            cards.Add(TrashCardViewModel.ForCapture(capture, capture.DeletedAt!.Value, now));
+        }
+
+        _trashCards.Clear();
+        foreach (var card in cards.OrderByDescending(card => card.DeletedAt))
+        {
+            _trashCards.Add(card);
+        }
+    }
+
     private async Task ReloadPlacesAsync()
     {
         var places = await _database.ListPlacesAsync();
@@ -639,6 +770,7 @@ public partial class MainWindow : Window
         {
             _liveBrowserTabs = snapshot.Tabs;
             await ReloadPlacesAsync();
+            await ReloadLibraryAuxiliaryAsync();
             StatusText.Text = $"BROWSER · {snapshot.Tabs.Count} OPEN TABS";
         });
     }
@@ -669,17 +801,64 @@ public partial class MainWindow : Window
 
     private void PluginsClick(object sender, RoutedEventArgs e)
     {
+        var catalog = LoadPluginCatalog();
+        var window = new PluginManagerWindow(catalog) { Owner = this };
+        window.ShowDialog();
+        _ = ReloadLibraryAuxiliaryAsync();
+    }
+
+    private PluginCatalogSnapshot LoadPluginCatalog()
+    {
         var bundled = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         var personal = PluginCatalog.Load(Path.Combine(_dataDirectory, "plugins"));
-        var catalog = new PluginCatalogSnapshot(
+        return new PluginCatalogSnapshot(
             bundled.Plugins.Concat(personal.Plugins)
                 .GroupBy(entry => entry.Manifest.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.OrderByDescending(entry => entry.Manifest.Version, StringComparer.Ordinal).First())
                 .OrderBy(entry => entry.Manifest.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             bundled.Errors.Concat(personal.Errors).ToArray());
-        var window = new PluginManagerWindow(catalog) { Owner = this };
-        window.ShowDialog();
+    }
+
+    private async void RestoreTrashClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: TrashCardViewModel card }) return;
+        var now = DateTimeOffset.Now;
+        if (card.Note is { } note)
+        {
+            var presentation = await _database.GetNotePresentationAsync(note.Id);
+            await _database.SaveNotePresentationAsync(presentation.Restore(now));
+        }
+        else if (card.Capture is { } capture)
+        {
+            await _database.SaveCaptureAsync(capture.RestoreDeleted(now));
+        }
+        await ReloadNotesAsync();
+        await ReloadClipboardAsync();
+        await ReloadTrashAsync();
+    }
+
+    private async void DeleteTrashPermanentlyClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: TrashCardViewModel { CanDeletePermanently: true } card }) return;
+        var confirmed = MessageBox.Show(
+            this,
+            $"Permanently delete '{card.Title}'? This cannot be undone.",
+            "Delete forever",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        if (!confirmed) return;
+
+        if (card.Note is { } note)
+        {
+            if (_openStickies.Remove(note.Id, out var sticky)) sticky.Close();
+            await _database.DeleteNotePermanentlyAsync(note.Id);
+        }
+        else if (card.Capture is { } capture)
+        {
+            await _database.DeleteCapturePermanentlyAsync(capture.Id);
+        }
+        await ReloadTrashAsync();
     }
 
     private async void ClipToNoteClick(object sender, RoutedEventArgs e)
@@ -881,4 +1060,44 @@ public sealed class PlaceCardViewModel
     public string StableIdentity => Place.StableIdentity;
 
     public string KindLabel { get; }
+}
+
+public sealed class TrashCardViewModel
+{
+    private static readonly TimeSpan PermanentDeleteDelay = TimeSpan.FromDays(30);
+
+    private TrashCardViewModel(
+        string title,
+        string kind,
+        DateTimeOffset deletedAt,
+        DateTimeOffset now,
+        Note? note,
+        CaptureModel? capture)
+    {
+        Title = string.IsNullOrWhiteSpace(title) ? $"Untitled {kind.ToLowerInvariant()}" : title;
+        DeletedAt = deletedAt;
+        Note = note;
+        Capture = capture;
+        var age = now - deletedAt;
+        CanDeletePermanently = age >= PermanentDeleteDelay;
+        Detail = $"{kind} · removed {deletedAt.LocalDateTime:g}";
+        var remaining = PermanentDeleteDelay - age;
+        DeleteHint = CanDeletePermanently
+            ? "Permanently delete this item"
+            : $"Available in {Math.Max(1, (int)Math.Ceiling(remaining.TotalDays))} days";
+    }
+
+    public string Title { get; }
+    public string Detail { get; }
+    public DateTimeOffset DeletedAt { get; }
+    public bool CanDeletePermanently { get; }
+    public string DeleteHint { get; }
+    public Note? Note { get; }
+    public CaptureModel? Capture { get; }
+
+    public static TrashCardViewModel ForNote(Note note, DateTimeOffset deletedAt, DateTimeOffset now) =>
+        new(note.Title, "Note", deletedAt, now, note, null);
+
+    public static TrashCardViewModel ForCapture(CaptureModel capture, DateTimeOffset deletedAt, DateTimeOffset now) =>
+        new(capture.Title.Length == 0 ? capture.PreviewText : capture.Title, "Clipboard item", deletedAt, now, null, capture);
 }

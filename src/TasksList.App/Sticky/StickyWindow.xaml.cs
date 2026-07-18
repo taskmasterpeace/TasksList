@@ -1,10 +1,14 @@
 using System.Media;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using TasksList.App.Editor;
 using TasksList.Core.Markdown;
@@ -23,6 +27,8 @@ public partial class StickyWindow : Window
     private readonly MarkdownDocumentService _markdownService = new();
     private readonly Func<ContextRef?> _contextProvider;
     private readonly Func<IReadOnlyList<WindowBounds>> _siblingBoundsProvider;
+    private readonly Func<double> _snapToleranceProvider;
+    private readonly Func<bool> _reduceMotionProvider;
     private readonly StickyWindowController _controller;
     private Note _note;
     private bool _isLoading = true;
@@ -32,18 +38,23 @@ public partial class StickyWindow : Window
     private string _titleBeforeEdit = string.Empty;
     private bool _suppressBoundsCapture;
     private IReadOnlyList<NamedNoteStyle> _namedStyles = [];
+    private string _attachmentLabel = "UNATTACHED";
 
     public StickyWindow(
         Note note,
         NotePresentation presentation,
         TasksListDatabase database,
         Func<ContextRef?>? contextProvider = null,
-        Func<IReadOnlyList<WindowBounds>>? siblingBoundsProvider = null)
+        Func<IReadOnlyList<WindowBounds>>? siblingBoundsProvider = null,
+        Func<double>? snapToleranceProvider = null,
+        Func<bool>? reduceMotionProvider = null)
     {
         _note = note;
         _database = database;
         _contextProvider = contextProvider ?? (() => null);
         _siblingBoundsProvider = siblingBoundsProvider ?? (() => []);
+        _snapToleranceProvider = snapToleranceProvider ?? (() => 12);
+        _reduceMotionProvider = reduceMotionProvider ?? (() => false);
         _controller = new StickyWindowController(presentation);
         InitializeComponent();
 
@@ -105,6 +116,8 @@ public partial class StickyWindow : Window
 
     public WindowBounds CurrentBounds => new(Left, Top, ActualWidth, ActualHeight);
 
+    public void ApplyExternalStyle(NoteStyle style) => _controller.ApplyStyle(style);
+
     public void DisableGhostMode()
     {
         _controller.DisableGhost();
@@ -133,7 +146,7 @@ public partial class StickyWindow : Window
         {
             SystemSounds.Exclamation.Play();
         }
-        if (decision.Pulse)
+        if (decision.Pulse && !_reduceMotionProvider())
         {
             PaperShadow.BeginAnimation(
                 System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
@@ -239,25 +252,30 @@ public partial class StickyWindow : Window
             MarkdownBox.IsReadOnly = presentation.Locked;
             TitleText.Cursor = presentation.Locked ? Cursors.Arrow : Cursors.SizeAll;
 
-            var background = ParseColor(presentation.BackgroundHex);
-            var text = ParseColor(presentation.TextHex);
-            var accent = ParseColor(presentation.AccentHex);
-            Paper.Background = presentation.TextureEnabled
+            var highContrast = SystemParameters.HighContrast;
+            var background = highContrast ? SystemColors.WindowColor : ParseColor(presentation.BackgroundHex);
+            var text = highContrast ? SystemColors.WindowTextColor : ParseColor(presentation.TextHex);
+            var accent = highContrast ? SystemColors.HighlightColor : ParseColor(presentation.AccentHex);
+            Paper.Background = presentation.TextureEnabled && !highContrast
                 ? CreatePaperBrush(background)
                 : new SolidColorBrush(background);
-            Paper.BorderBrush = new SolidColorBrush(Color.FromArgb(
-                presentation.BorderVisible ? (byte)100 : (byte)0,
-                accent.R,
-                accent.G,
-                accent.B));
-            Paper.BorderThickness = presentation.BorderVisible ? new Thickness(1) : new Thickness(0);
+            Paper.BorderBrush = highContrast
+                ? SystemColors.WindowTextBrush
+                : new SolidColorBrush(Color.FromArgb(
+                    presentation.BorderVisible ? (byte)100 : (byte)0,
+                    accent.R,
+                    accent.G,
+                    accent.B));
+            Paper.BorderThickness = highContrast
+                ? new Thickness(2)
+                : presentation.BorderVisible ? new Thickness(1) : new Thickness(0);
             Paper.CornerRadius = presentation.CornerStyle switch
             {
                 CornerStyle.Square => new CornerRadius(2),
                 CornerStyle.Round => new CornerRadius(18),
                 _ => new CornerRadius(10),
             };
-            PaperShadow.Opacity = presentation.ShadowStrength;
+            PaperShadow.Opacity = highContrast ? 0 : presentation.ShadowStrength;
 
             var textBrush = new SolidColorBrush(text);
             var mutedBrush = new SolidColorBrush(Color.FromArgb(185, text.R, text.G, text.B));
@@ -295,7 +313,7 @@ public partial class StickyWindow : Window
             if (presentation.WakeAt is not null) stateLabels.Add("SLEEPING");
             ContextText.Text = stateLabels.Count > 0
                 ? string.Join(" · ", stateLabels)
-                : _note.Attachments.Count == 0 ? "UNATTACHED" : "CONTEXT ATTACHED";
+                : _attachmentLabel;
             OpacityText.Text = $"{presentation.ActiveOpacity:P0}";
             CustomizeControl.Load(presentation);
         }
@@ -341,21 +359,38 @@ public partial class StickyWindow : Window
     {
         if (visibility == ToolbarVisibility.Always)
         {
-            ChromePanel.Opacity = 1;
+            SetToolbarOpacity(1);
             ChromePanel.IsHitTestVisible = true;
         }
         else if (visibility == ToolbarVisibility.Hidden)
         {
-            ChromePanel.Opacity = 0;
+            SetToolbarOpacity(0);
             ChromePanel.IsHitTestVisible = false;
         }
         else
         {
             var visible = Header.IsMouseOver ||
                           (visibility == ToolbarVisibility.Focused && IsKeyboardFocusWithin);
-            ChromePanel.Opacity = visible ? 1 : 0;
+            SetToolbarOpacity(visible ? 1 : 0);
             ChromePanel.IsHitTestVisible = visible;
         }
+    }
+
+    private void SetToolbarOpacity(double target)
+    {
+        if (_reduceMotionProvider())
+        {
+            ChromePanel.BeginAnimation(OpacityProperty, null);
+            ChromePanel.Opacity = target;
+            return;
+        }
+        ChromePanel.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(target, TimeSpan.FromMilliseconds(120))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+            },
+            HandoffBehavior.SnapshotAndReplace);
     }
 
     private void HeaderMouseEnter(object sender, MouseEventArgs e) =>
@@ -408,7 +443,7 @@ public partial class StickyWindow : Window
             requested,
             _siblingBoundsProvider(),
             workArea,
-            12,
+            _snapToleranceProvider(),
             Keyboard.Modifiers.HasFlag(ModifierKeys.Alt));
         Left = snapped.Left;
         Top = snapped.Top;
@@ -581,6 +616,12 @@ public partial class StickyWindow : Window
 
     private void AnimateWindowOpacity(double target)
     {
+        if (_reduceMotionProvider())
+        {
+            BeginAnimation(OpacityProperty, null);
+            Opacity = target;
+            return;
+        }
         BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(target, TimeSpan.FromMilliseconds(120))
@@ -751,7 +792,7 @@ public partial class StickyWindow : Window
             ? _note.SetAttachmentVisibility(context.Id, AttachmentVisibility.ForegroundOnly)
             : _note.AttachTo(context.Id, AttachmentVisibility.ForegroundOnly);
         await _database.SaveNoteAsync(_note);
-        ContextText.Text = $"ATTACHED · {context.DisplayName} · Foreground";
+        SetAttachedContext(context, AttachmentVisibility.ForegroundOnly);
         NoteSaved?.Invoke(this, EventArgs.Empty);
     }
 
@@ -779,7 +820,7 @@ public partial class StickyWindow : Window
             ? _note.SetAttachmentVisibility(context.Id, visibility)
             : _note.AttachTo(context.Id, visibility);
         await _database.SaveNoteAsync(_note);
-        ContextText.Text = $"ATTACHED · {context.DisplayName} · {VisibilityLabel(visibility)}";
+        SetAttachedContext(context, visibility);
         NoteSaved?.Invoke(this, EventArgs.Empty);
     }
 
@@ -790,7 +831,7 @@ public partial class StickyWindow : Window
             _note = _note.DetachFrom(attachment.ContextId);
         }
         await _database.SaveNoteAsync(_note);
-        ContextText.Text = "UNATTACHED";
+        SetDetachedContext();
         NoteSaved?.Invoke(this, EventArgs.Empty);
     }
 
@@ -802,9 +843,53 @@ public partial class StickyWindow : Window
         }
 
         var context = await _database.GetContextAsync(attachment.ContextId);
-        ContextText.Text = context is null
-            ? $"ATTACHED · {VisibilityLabel(attachment.Visibility)}"
-            : $"ATTACHED · {context.DisplayName} · {VisibilityLabel(attachment.Visibility)}";
+        if (context is null)
+        {
+            _attachmentLabel = $"ATTACHED · {VisibilityLabel(attachment.Visibility)}";
+            ContextText.Text = _attachmentLabel;
+            ContextIcon.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            SetAttachedContext(context, attachment.Visibility);
+        }
+    }
+
+    private void SetAttachedContext(ContextRef context, AttachmentVisibility visibility)
+    {
+        _attachmentLabel = $"ATTACHED · {context.DisplayName} · {VisibilityLabel(visibility)}";
+        ContextText.Text = _attachmentLabel;
+        ContextIcon.Source = TryLoadContextIcon(context);
+        ContextIcon.Visibility = ContextIcon.Source is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SetDetachedContext()
+    {
+        _attachmentLabel = "UNATTACHED";
+        ContextText.Text = _attachmentLabel;
+        ContextIcon.Source = null;
+        ContextIcon.Visibility = Visibility.Collapsed;
+    }
+
+    private static ImageSource? TryLoadContextIcon(ContextRef context)
+    {
+        var executablePath = context.StableIdentity.Split('|', 2)[0];
+        if (!File.Exists(executablePath)) return null;
+        try
+        {
+            using var icon = System.Drawing.Icon.ExtractAssociatedIcon(executablePath);
+            if (icon is null) return null;
+            var source = Imaging.CreateBitmapSourceFromHIcon(
+                icon.Handle,
+                Int32Rect.Empty,
+                BitmapSizeOptions.FromWidthAndHeight(16, 16));
+            source.Freeze();
+            return source;
+        }
+        catch (Exception exception) when (exception is IOException or ArgumentException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
     }
 
     private static string VisibilityLabel(AttachmentVisibility visibility) => visibility switch
@@ -821,9 +906,7 @@ public partial class StickyWindow : Window
         _isPreviewing = !_isPreviewing;
         if (_isPreviewing)
         {
-            PreviewViewer.Document = MarkdownFlowDocumentBuilder.Build(
-                _markdownService.Parse(MarkdownBox.Text),
-                ToggleTaskFromPreview);
+            PreviewViewer.Document = BuildPreviewDocument();
             MarkdownBox.Visibility = Visibility.Collapsed;
             PreviewViewer.Visibility = Visibility.Visible;
             ModeButton.Content = "EDIT";
@@ -852,9 +935,31 @@ public partial class StickyWindow : Window
         }
 
         MarkdownBox.Text = _markdownService.ToggleTask(MarkdownBox.Text, taskIndex);
-        PreviewViewer.Document = MarkdownFlowDocumentBuilder.Build(
-            _markdownService.Parse(MarkdownBox.Text),
-            ToggleTaskFromPreview);
+        PreviewViewer.Document = BuildPreviewDocument();
+    }
+
+    private FlowDocument BuildPreviewDocument() => MarkdownFlowDocumentBuilder.Build(
+        _markdownService.Parse(MarkdownBox.Text),
+        ToggleTaskFromPreview,
+        UpdateInteractiveBlock,
+        _note.Id,
+        _database);
+
+    private void UpdateInteractiveBlock(InteractiveBlock block, int value)
+    {
+        if (_controller.Presentation.Locked)
+        {
+            return;
+        }
+
+        var service = new InteractiveBlockService();
+        MarkdownBox.Text = block switch
+        {
+            ProgressInteractiveBlock => service.SetProgress(MarkdownBox.Text, block.TypeIndex, value),
+            CounterInteractiveBlock => service.SetCounter(MarkdownBox.Text, block.TypeIndex, value),
+            TimerInteractiveBlock => service.SetTimerDuration(MarkdownBox.Text, block.TypeIndex, value),
+            _ => MarkdownBox.Text,
+        };
     }
 
     private void NewStickyMenuClick(object sender, RoutedEventArgs e) => NewStickyRequested?.Invoke();

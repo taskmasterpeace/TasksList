@@ -16,6 +16,8 @@ public sealed record MarkdownCode(string Language, string Code) : MarkdownRender
 
 public sealed record MarkdownTable(int ColumnCount, IReadOnlyList<IReadOnlyList<string>> Rows) : MarkdownRenderBlock;
 
+public sealed record MarkdownInteractive(InteractiveBlock Interactive) : MarkdownRenderBlock;
+
 public sealed partial class MarkdownDocumentService
 {
     public MarkdownRenderDocument Parse(string markdown)
@@ -23,12 +25,27 @@ public sealed partial class MarkdownDocumentService
         var lines = Normalize(markdown).Split('\n');
         var blocks = new List<MarkdownRenderBlock>();
         var taskIndex = 0;
+        var interactiveTypeIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         for (var index = 0; index < lines.Length; index++)
         {
             var line = lines[index];
             if (string.IsNullOrWhiteSpace(line) || line == "---")
             {
+                continue;
+            }
+
+            if (InteractiveBlockService.ParseLine(line, interactiveTypeIndexes) is { } interactive)
+            {
+                blocks.Add(new MarkdownInteractive(interactive));
+                var type = interactive switch
+                {
+                    ProgressInteractiveBlock => "progress",
+                    CounterInteractiveBlock => "counter",
+                    TimerInteractiveBlock => "timer",
+                    _ => string.Empty,
+                };
+                interactiveTypeIndexes[type] = interactive.TypeIndex + 1;
                 continue;
             }
 
@@ -160,4 +177,3 @@ public sealed partial class MarkdownDocumentService
     [GeneratedRegex("^\\s*\\|?\\s*:?-{3,}:?\\s*(\\|\\s*:?-{3,}:?\\s*)+\\|?\\s*$")]
     private static partial Regex TableDividerRegex();
 }
-

@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using TasksList.Core.Models;
 using TasksList.Core.Notes;
+using TasksList.Core.Markdown;
 using TasksList.Infrastructure.Storage;
 
 namespace TasksList.Infrastructure.Tests.Storage;
@@ -67,6 +68,29 @@ public sealed class NotePresentationDatabaseTests : IAsyncLifetime
         var loaded = await database.GetNotePresentationAsync(note.Id);
 
         Assert.Equal(presentation, loaded);
+    }
+
+    [Fact]
+    public async Task InteractiveTimerRuntimeStateRoundTripsSeparatelyFromMarkdown()
+    {
+        var database = new TasksListDatabase(Path.Combine(_directory, "timer.db"));
+        await database.InitializeAsync();
+        var note = Note.Create("Focus", ":::timer minutes=25 label=\"Focus\"");
+        await database.SaveNoteAsync(note);
+        var now = DateTimeOffset.Parse("2026-07-18T20:00:00Z");
+        var state = new InteractiveTimerState(
+            note.Id,
+            0,
+            1500,
+            1200,
+            true,
+            now.AddMinutes(20),
+            now);
+
+        await database.SaveInteractiveTimerStateAsync(state);
+        var loaded = await database.GetInteractiveTimerStateAsync(note.Id, 0);
+
+        Assert.Equal(state, loaded);
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using TasksList.Core.Models;
 using TasksList.Core.Notes;
 using TasksList.Core.Clipboard;
+using TasksList.Core.Markdown;
 
 namespace TasksList.Infrastructure.Storage;
 
@@ -165,6 +166,65 @@ public sealed class TasksListDatabase
         }
     }
 
+    public async Task SaveInteractiveTimerStateAsync(
+        InteractiveTimerState state,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO interactive_timer_states (
+                note_id, block_index, duration_seconds, remaining_seconds,
+                is_running, ends_at, modified_at)
+            VALUES (
+                $noteId, $blockIndex, $durationSeconds, $remainingSeconds,
+                $isRunning, $endsAt, $modifiedAt)
+            ON CONFLICT(note_id, block_index) DO UPDATE SET
+                duration_seconds = excluded.duration_seconds,
+                remaining_seconds = excluded.remaining_seconds,
+                is_running = excluded.is_running,
+                ends_at = excluded.ends_at,
+                modified_at = excluded.modified_at;
+            """;
+        command.Parameters.AddWithValue("$noteId", state.NoteId.Value.ToString("D"));
+        command.Parameters.AddWithValue("$blockIndex", state.BlockIndex);
+        command.Parameters.AddWithValue("$durationSeconds", state.DurationSeconds);
+        command.Parameters.AddWithValue("$remainingSeconds", state.RemainingSeconds);
+        command.Parameters.AddWithValue("$isRunning", state.IsRunning ? 1 : 0);
+        command.Parameters.AddWithValue("$endsAt", DbTimestamp(state.EndsAt));
+        command.Parameters.AddWithValue("$modifiedAt", DbTimestamp(state.ModifiedAt));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<InteractiveTimerState?> GetInteractiveTimerStateAsync(
+        NoteId noteId,
+        int blockIndex,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT duration_seconds, remaining_seconds, is_running, ends_at, modified_at
+            FROM interactive_timer_states
+            WHERE note_id = $noteId AND block_index = $blockIndex;
+            """;
+        command.Parameters.AddWithValue("$noteId", noteId.Value.ToString("D"));
+        command.Parameters.AddWithValue("$blockIndex", blockIndex);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+        return new InteractiveTimerState(
+            noteId,
+            blockIndex,
+            reader.GetInt32(0),
+            reader.GetInt32(1),
+            reader.GetInt32(2) != 0,
+            ReadTimestamp(reader, 3),
+            ReadTimestamp(reader, 4) ?? DateTimeOffset.UnixEpoch);
+    }
+
     public async Task SaveNamedStyleAsync(
         NamedNoteStyle style,
         CancellationToken cancellationToken = default)
@@ -286,6 +346,41 @@ public sealed class TasksListDatabase
             reader.GetString(1),
             reader.GetString(2),
             reader.GetString(3));
+    }
+
+    public async Task<IReadOnlyList<ContextRef>> ListContextsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var contexts = new List<ContextRef>();
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, kind, provider, stable_identity, display_name
+            FROM contexts
+            ORDER BY display_name COLLATE NOCASE, id;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            contexts.Add(new ContextRef(
+                new ContextId(Guid.Parse(reader.GetString(0))),
+                (ContextKind)reader.GetInt32(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4)));
+        }
+        return contexts;
+    }
+
+    public async Task DeleteNotePermanentlyAsync(
+        NoteId noteId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM notes WHERE id = $id;";
+        command.Parameters.AddWithValue("$id", noteId.Value.ToString("D"));
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task SavePlaceAsync(Place place, CancellationToken cancellationToken = default)

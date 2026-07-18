@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using TasksList.Core.Markdown;
+using TasksList.Core.Models;
+using TasksList.Infrastructure.Storage;
 
 namespace TasksList.App.Editor;
 
@@ -10,7 +12,10 @@ public static class MarkdownFlowDocumentBuilder
 {
     public static FlowDocument Build(
         MarkdownRenderDocument markdown,
-        Action<int, bool> taskChanged)
+        Action<int, bool> taskChanged,
+        Action<InteractiveBlock, int>? interactiveChanged = null,
+        NoteId? noteId = null,
+        TasksListDatabase? database = null)
     {
         var document = new FlowDocument
         {
@@ -22,19 +27,36 @@ public static class MarkdownFlowDocumentBuilder
 
         foreach (var block in markdown.Blocks)
         {
-            document.Blocks.Add(BuildBlock(block, taskChanged));
+            document.Blocks.Add(BuildBlock(
+                block,
+                taskChanged,
+                interactiveChanged,
+                noteId,
+                database));
         }
 
         return document;
     }
 
-    private static Block BuildBlock(MarkdownRenderBlock block, Action<int, bool> taskChanged) =>
+    private static Block BuildBlock(
+        MarkdownRenderBlock block,
+        Action<int, bool> taskChanged,
+        Action<InteractiveBlock, int>? interactiveChanged,
+        NoteId? noteId,
+        TasksListDatabase? database) =>
         block switch
         {
             MarkdownHeading heading => BuildHeading(heading),
             MarkdownTask task => BuildTask(task, taskChanged),
             MarkdownCode code => BuildCode(code),
             MarkdownTable table => BuildTable(table),
+            MarkdownInteractive interactive when
+                interactiveChanged is not null && noteId is not null && database is not null =>
+                InteractiveBlockControls.Build(
+                    interactive.Interactive,
+                    interactiveChanged,
+                    noteId.Value,
+                    database),
             MarkdownParagraph paragraph => new Paragraph(new Run(paragraph.Text))
             {
                 Margin = new Thickness(0, 3, 0, 7),
