@@ -103,7 +103,8 @@
                 <RowDefinition x:Name="FooterRow" Height="36" />
             </Grid.RowDefinitions>
 
-            <Border x:Name="Header" Grid.Row="0" BorderBrush="#315C451A" BorderThickness="0,0,0,1"
+            <Border x:Name="Header" Grid.Row="0" Background="Transparent"
+                    BorderBrush="#315C451A" BorderThickness="0,0,0,1" Cursor="SizeAll"
                     MouseLeftButtonDown="TitleBarMouseDown"
                     MouseEnter="HeaderMouseEnter" MouseLeave="HeaderMouseLeave">
                 <Grid Margin="14,0,7,0">
@@ -115,7 +116,7 @@
                     <Grid x:Name="TitleHost" VerticalAlignment="Stretch" Margin="0,0,8,0">
                         <TextBlock x:Name="TitleText" VerticalAlignment="Center"
                                    Foreground="#2E271C" FontWeight="SemiBold" FontSize="14"
-                                   TextTrimming="CharacterEllipsis" Cursor="SizeAll" />
+                                   TextTrimming="CharacterEllipsis" />
                         <TextBox x:Name="TitleEditor" Visibility="Collapsed" Background="#16FFFFFF"
                                  BorderBrush="#705C451A" BorderThickness="0,0,0,1" Padding="0"
                                  Foreground="#2E271C" FontWeight="SemiBold" FontSize="14"
@@ -124,7 +125,7 @@
                     </Grid>
 
                     <StackPanel x:Name="ChromePanel" Grid.Column="1" Orientation="Horizontal"
-                                VerticalAlignment="Center" Opacity="0">
+                                VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False">
                         <Button x:Name="PinButton" Style="{StaticResource StickyIconButton}"
                                 Content="&#xE718;" ToolTip="Always on top (Ctrl+Shift+T)"
                                 AutomationProperties.Name="Always on top" Click="PinClick" />
