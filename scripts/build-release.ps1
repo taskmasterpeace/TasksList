@@ -45,8 +45,11 @@ foreach ($plugin in $plugins) {
     if ($LASTEXITCODE -ne 0) { throw "Plugin publish failed: $($plugin.Id)" }
 
     $temporaryZip = Join-Path $packageDirectory "$($plugin.Id).zip"
+    $packagePath = Join-Path $packageDirectory "$($plugin.Id).taskplugin"
+    Remove-Item -LiteralPath $temporaryZip -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $packagePath -Force -ErrorAction SilentlyContinue
     Compress-Archive -Path (Join-Path $pluginDirectory '*') -DestinationPath $temporaryZip -CompressionLevel Optimal
-    Move-Item -LiteralPath $temporaryZip -Destination (Join-Path $packageDirectory "$($plugin.Id).taskplugin")
+    Move-Item -LiteralPath $temporaryZip -Destination $packagePath
 }
 
 Copy-Item -LiteralPath (Join-Path $repoRoot 'browser-extension') -Destination (Join-Path $appDirectory 'browser-extension') -Recurse
