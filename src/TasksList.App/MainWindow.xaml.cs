@@ -148,11 +148,39 @@ public partial class MainWindow : Window
 
     public async Task CaptureRegionAsync()
     {
+        await CaptureOperation.RunAsync(
+            CaptureRegionCoreAsync,
+            message =>
+            {
+                MessageBox.Show(
+                    this,
+                    message,
+                    "Task'sList capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            });
+    }
+
+    private async Task CaptureRegionCoreAsync()
+    {
         var source = ForegroundContextReader.Read();
         var overlay = new CaptureOverlay();
-        if (overlay.ShowDialog() != true || overlay.Result is not { } result)
+        ScreenCaptureResult? result;
+        try
         {
-            return;
+            if (overlay.ShowDialog() != true || overlay.Result is not { } selectedResult)
+            {
+                return;
+            }
+
+            result = selectedResult;
+        }
+        finally
+        {
+            if (overlay.IsVisible)
+            {
+                overlay.Close();
+            }
         }
 
         var payload = await _payloadStore.PutAsync(result.PngBytes, "image/png");

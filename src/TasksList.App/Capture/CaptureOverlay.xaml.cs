@@ -68,7 +68,7 @@ public partial class CaptureOverlay : Window
         var screenBottomRight = PointToScreen(new System.Windows.Point(right, bottom));
         var pixelWidth = Math.Max(1, (int)Math.Round(screenBottomRight.X - screenTopLeft.X));
         var pixelHeight = Math.Max(1, (int)Math.Round(screenBottomRight.Y - screenTopLeft.Y));
-        Visibility = Visibility.Hidden;
+        CaptureOverlayPresentation.SuppressForCapture(this);
         Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
 
         using var bitmap = new Bitmap(pixelWidth, pixelHeight, PixelFormat.Format32bppArgb);

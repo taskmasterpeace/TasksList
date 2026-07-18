@@ -17,6 +17,7 @@
             <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             <Setter Property="Background" Value="{StaticResource CanvasBrush}" />
+            <Setter Property="Icon" Value="/TasksList.App;component/Assets/TasksList.ico" />
         </Style>
 
         <Style x:Key="GhostButton" TargetType="Button">

@@ -8,7 +8,8 @@
 
   <ItemGroup>
     <Content Include="..\..\themes\default\theme.json" Link="themes\default\theme.json" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\assets\brand\generated\TasksList.ico" Link="assets\TasksList.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="..\..\assets\brand\generated\TasksList.ico" Link="Assets\TasksList.ico" />
+    <Resource Include="..\..\assets\brand\generated\app-icon-64.png" Link="Assets\app-icon-64.png" />
   </ItemGroup>
 
   <ItemGroup>
