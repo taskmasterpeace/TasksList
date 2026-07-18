@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using TasksList.Core.Models;
 using TasksList.Core.Notes;
+using TasksList.Core.Clipboard;
 
 namespace TasksList.Infrastructure.Storage;
 
@@ -510,19 +511,41 @@ public sealed class TasksListDatabase
         {
             command.Transaction = transaction;
             command.CommandText = """
-                INSERT INTO captures (id, kind, source_context_id, preview_text, captured_at)
-                VALUES ($id, $kind, $sourceContextId, $previewText, $capturedAt)
+                INSERT INTO captures (
+                    id, kind, source_context_id, title, preview_text, captured_at,
+                    is_favorite, used_at, deleted_at, modified_at, size_bytes,
+                    source_url, duplicate_hash)
+                VALUES (
+                    $id, $kind, $sourceContextId, $title, $previewText, $capturedAt,
+                    $isFavorite, $usedAt, $deletedAt, $modifiedAt, $sizeBytes,
+                    $sourceUrl, $duplicateHash)
                 ON CONFLICT(id) DO UPDATE SET
                     kind = excluded.kind,
                     source_context_id = excluded.source_context_id,
+                    title = excluded.title,
                     preview_text = excluded.preview_text,
-                    captured_at = excluded.captured_at;
+                    captured_at = excluded.captured_at,
+                    is_favorite = excluded.is_favorite,
+                    used_at = excluded.used_at,
+                    deleted_at = excluded.deleted_at,
+                    modified_at = excluded.modified_at,
+                    size_bytes = excluded.size_bytes,
+                    source_url = excluded.source_url,
+                    duplicate_hash = excluded.duplicate_hash;
                 """;
             command.Parameters.AddWithValue("$id", capture.Id.Value.ToString("D"));
             command.Parameters.AddWithValue("$kind", (int)capture.Kind);
             command.Parameters.AddWithValue("$sourceContextId", capture.SourceContextId.Value.ToString("D"));
+            command.Parameters.AddWithValue("$title", capture.Title);
             command.Parameters.AddWithValue("$previewText", capture.PreviewText);
             command.Parameters.AddWithValue("$capturedAt", capture.CapturedAt.ToString("O", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$isFavorite", capture.IsFavorite ? 1 : 0);
+            command.Parameters.AddWithValue("$usedAt", DbTimestamp(capture.UsedAt));
+            command.Parameters.AddWithValue("$deletedAt", DbTimestamp(capture.DeletedAt));
+            command.Parameters.AddWithValue("$modifiedAt", DbTimestamp(capture.ModifiedAt));
+            command.Parameters.AddWithValue("$sizeBytes", capture.SizeBytes);
+            command.Parameters.AddWithValue("$sourceUrl", (object?)capture.SourceUrl ?? DBNull.Value);
+            command.Parameters.AddWithValue("$duplicateHash", capture.DuplicateHash);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -540,6 +563,27 @@ public sealed class TasksListDatabase
             command.Parameters.AddWithValue("$placeId", assignment.PlaceId.Value.ToString("D"));
             command.Parameters.AddWithValue("$actor", (int)assignment.Actor);
             command.Parameters.AddWithValue("$filedAt", assignment.FiledAt.ToString("O", CultureInfo.InvariantCulture));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await DeleteOwnedRowsAsync(
+            connection,
+            transaction,
+            "capture_note_assignments",
+            "capture_id",
+            capture.Id.Value,
+            cancellationToken);
+        foreach (var noteId in capture.AssignedNoteIds)
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO capture_note_assignments (capture_id, note_id, assigned_at)
+                VALUES ($captureId, $noteId, $assignedAt);
+                """;
+            command.Parameters.AddWithValue("$captureId", capture.Id.Value.ToString("D"));
+            command.Parameters.AddWithValue("$noteId", noteId.Value.ToString("D"));
+            command.Parameters.AddWithValue("$assignedAt", DbTimestamp(capture.ModifiedAt));
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -584,11 +628,13 @@ public sealed class TasksListDatabase
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);
-        var rows = new List<(CaptureId Id, CaptureKind Kind, ContextId Source, string Text, DateTimeOffset CapturedAt)>();
+        var rows = new List<CaptureRow>();
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT c.id, c.kind, c.source_context_id, c.preview_text, c.captured_at
+                SELECT c.id, c.kind, c.source_context_id, c.title, c.preview_text, c.captured_at,
+                       c.is_favorite, c.used_at, c.deleted_at, c.modified_at, c.size_bytes,
+                       c.source_url, c.duplicate_hash
                 FROM captures_fts f
                 JOIN captures c ON c.id = f.capture_id
                 WHERE captures_fts MATCH $query
@@ -600,12 +646,7 @@ public sealed class TasksListDatabase
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                rows.Add((
-                    new CaptureId(Guid.Parse(reader.GetString(0))),
-                    (CaptureKind)reader.GetInt32(1),
-                    new ContextId(Guid.Parse(reader.GetString(2))),
-                    reader.GetString(3),
-                    DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture)));
+                rows.Add(ReadCaptureRow(reader));
             }
         }
 
@@ -613,8 +654,9 @@ public sealed class TasksListDatabase
         foreach (var row in rows)
         {
             var assignments = await LoadAssignmentsAsync(connection, row.Id, cancellationToken);
+            var assignedNotes = await LoadAssignedNoteIdsAsync(connection, row.Id, cancellationToken);
             var representations = await LoadRepresentationsAsync(connection, row.Id, cancellationToken);
-            captures.Add(Capture.Restore(row.Id, row.Kind, row.Source, row.Text, row.CapturedAt, assignments, representations));
+            captures.Add(RestoreCapture(row, assignments, assignedNotes, representations));
         }
 
         return captures;
@@ -623,23 +665,20 @@ public sealed class TasksListDatabase
     public async Task<IReadOnlyList<Capture>> ListCapturesAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);
-        var rows = new List<(CaptureId Id, CaptureKind Kind, ContextId Source, string Text, DateTimeOffset CapturedAt)>();
+        var rows = new List<CaptureRow>();
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT id, kind, source_context_id, preview_text, captured_at
+                SELECT id, kind, source_context_id, title, preview_text, captured_at,
+                       is_favorite, used_at, deleted_at, modified_at, size_bytes,
+                       source_url, duplicate_hash
                 FROM captures
                 ORDER BY captured_at DESC, rowid DESC;
                 """;
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                rows.Add((
-                    new CaptureId(Guid.Parse(reader.GetString(0))),
-                    (CaptureKind)reader.GetInt32(1),
-                    new ContextId(Guid.Parse(reader.GetString(2))),
-                    reader.GetString(3),
-                    DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture)));
+                rows.Add(ReadCaptureRow(reader));
             }
         }
 
@@ -647,12 +686,119 @@ public sealed class TasksListDatabase
         foreach (var row in rows)
         {
             var assignments = await LoadAssignmentsAsync(connection, row.Id, cancellationToken);
+            var assignedNotes = await LoadAssignedNoteIdsAsync(connection, row.Id, cancellationToken);
             var representations = await LoadRepresentationsAsync(connection, row.Id, cancellationToken);
-            captures.Add(Capture.Restore(row.Id, row.Kind, row.Source, row.Text, row.CapturedAt, assignments, representations));
+            captures.Add(RestoreCapture(row, assignments, assignedNotes, representations));
         }
 
         return captures;
     }
+
+    public async Task<IReadOnlyList<Capture>> SearchCapturesAsync(
+        ClipboardQuery query,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var captures = await ListCapturesAsync(cancellationToken);
+        return captures.Where(query.Matches).Take(Math.Max(0, limit)).ToArray();
+    }
+
+    public async Task<Capture?> FindCaptureByDuplicateHashAsync(
+        string duplicateHash,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(duplicateHash))
+        {
+            return null;
+        }
+        var captures = await ListCapturesAsync(cancellationToken);
+        return captures.FirstOrDefault(capture =>
+            string.Equals(capture.DuplicateHash, duplicateHash, StringComparison.Ordinal));
+    }
+
+    public async Task DeleteCapturePermanentlyAsync(
+        CaptureId captureId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using (var fts = connection.CreateCommand())
+        {
+            fts.Transaction = transaction;
+            fts.CommandText = "DELETE FROM captures_fts WHERE capture_id = $id;";
+            fts.Parameters.AddWithValue("$id", captureId.Value.ToString("D"));
+            await fts.ExecuteNonQueryAsync(cancellationToken);
+        }
+        await using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM captures WHERE id = $id;";
+            command.Parameters.AddWithValue("$id", captureId.Value.ToString("D"));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static CaptureRow ReadCaptureRow(SqliteDataReader reader)
+    {
+        var capturedAt = DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture);
+        return new CaptureRow(
+            new CaptureId(Guid.Parse(reader.GetString(0))),
+            (CaptureKind)reader.GetInt32(1),
+            new ContextId(Guid.Parse(reader.GetString(2))),
+            reader.GetString(3),
+            reader.GetString(4),
+            capturedAt,
+            reader.GetInt32(6) != 0,
+            ReadTimestamp(reader, 7),
+            ReadTimestamp(reader, 8),
+            ReadTimestamp(reader, 9) ?? capturedAt,
+            reader.GetInt64(10),
+            reader.IsDBNull(11) ? null : reader.GetString(11),
+            reader.GetString(12));
+    }
+
+    private static Capture RestoreCapture(
+        CaptureRow row,
+        IReadOnlyList<Assignment> assignments,
+        IReadOnlySet<NoteId> assignedNoteIds,
+        IReadOnlyDictionary<string, string> representations) => Capture.Restore(
+        row.Id,
+        row.Kind,
+        row.Source,
+        row.Text,
+        row.CapturedAt,
+        assignments,
+        representations,
+        row.Title,
+        row.IsFavorite,
+        row.UsedAt,
+        row.DeletedAt,
+        row.ModifiedAt,
+        row.SizeBytes,
+        row.SourceUrl,
+        row.DuplicateHash,
+        assignedNoteIds);
+
+    private static DateTimeOffset? ReadTimestamp(SqliteDataReader reader, int index) =>
+        reader.IsDBNull(index)
+            ? null
+            : DateTimeOffset.Parse(reader.GetString(index), CultureInfo.InvariantCulture);
+
+    private sealed record CaptureRow(
+        CaptureId Id,
+        CaptureKind Kind,
+        ContextId Source,
+        string Title,
+        string Text,
+        DateTimeOffset CapturedAt,
+        bool IsFavorite,
+        DateTimeOffset? UsedAt,
+        DateTimeOffset? DeletedAt,
+        DateTimeOffset ModifiedAt,
+        long SizeBytes,
+        string? SourceUrl,
+        string DuplicateHash);
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {
@@ -717,6 +863,28 @@ public sealed class TasksListDatabase
         }
 
         return assignments;
+    }
+
+    private static async Task<IReadOnlySet<NoteId>> LoadAssignedNoteIdsAsync(
+        SqliteConnection connection,
+        CaptureId captureId,
+        CancellationToken cancellationToken)
+    {
+        var noteIds = new HashSet<NoteId>();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT note_id
+            FROM capture_note_assignments
+            WHERE capture_id = $captureId
+            ORDER BY note_id;
+            """;
+        command.Parameters.AddWithValue("$captureId", captureId.Value.ToString("D"));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            noteIds.Add(new NoteId(Guid.Parse(reader.GetString(0))));
+        }
+        return noteIds;
     }
 
     private static async Task<IReadOnlyDictionary<string, string>> LoadRepresentationsAsync(

@@ -83,6 +83,8 @@ public sealed class AppSettingsStore
         return settings with
         {
             SnapTolerance = Math.Clamp(settings.SnapTolerance, 0, 40),
+            ClipboardPaletteWidth = Math.Clamp(settings.ClipboardPaletteWidth, 720, 1800),
+            ClipboardPaletteHeight = Math.Clamp(settings.ClipboardPaletteHeight, 460, 1200),
             ExcludedClipboardApplications = (settings.ExcludedClipboardApplications ?? [])
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Select(value => value.Trim())

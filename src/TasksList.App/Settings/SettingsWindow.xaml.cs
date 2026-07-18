@@ -17,6 +17,8 @@ public partial class SettingsWindow : Window
         SnapSlider.Value = settings.SnapTolerance;
         ReduceMotionCheck.IsChecked = settings.ReduceMotion;
         PauseMonitoringCheck.IsChecked = settings.MonitoringPaused;
+        PromoteDuplicatesCheck.IsChecked = settings.PromoteDuplicateClips;
+        ExcludedAppsBox.Text = string.Join(Environment.NewLine, settings.ExcludedClipboardApplications);
         _rows = Enum.GetValues<AppHotkeyAction>()
             .Select(action => new HotkeyRow(
                 action,
@@ -48,6 +50,11 @@ public partial class SettingsWindow : Window
             SnapTolerance = (int)SnapSlider.Value,
             ReduceMotion = ReduceMotionCheck.IsChecked == true,
             MonitoringPaused = PauseMonitoringCheck.IsChecked == true,
+            PromoteDuplicateClips = PromoteDuplicatesCheck.IsChecked == true,
+            ExcludedClipboardApplications = ExcludedAppsBox.Text
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
             Hotkeys = hotkeys,
         };
         var errors = GlobalHotkeyBindingPolicy.Validate(result);

@@ -33,9 +33,18 @@ public partial class App : Application
             _settingsStore = new AppSettingsStore(Path.Combine(dataDirectory, "settings.json"));
             _settings = _settingsStore.Load();
             var window = new MainWindow(database, dataDirectory);
+            window.ClipboardPaletteSizeChanged += (width, height) =>
+            {
+                _settings = _settings with
+                {
+                    ClipboardPaletteWidth = width,
+                    ClipboardPaletteHeight = height,
+                };
+                _settingsStore.Save(_settings);
+            };
             MainWindow = window;
             window.Show();
-            window.SetClipboardMonitoringPaused(_settings.MonitoringPaused);
+            window.ApplyClipboardSettings(_settings);
 
             _tray = new TrayService(
                 new TrayCommands(
@@ -123,7 +132,7 @@ public partial class App : Application
 
         _settings = result;
         _settingsStore?.Save(result);
-        owner.SetClipboardMonitoringPaused(result.MonitoringPaused);
+        owner.ApplyClipboardSettings(result);
         MessageBox.Show(
             "Settings saved. Global shortcut changes take effect the next time Task'sList starts.",
             "Task'sList Settings",

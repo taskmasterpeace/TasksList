@@ -1,4 +1,5 @@
 using TasksList.Core.Models;
+using TasksList.Core.Clipboard;
 using TasksList.Infrastructure.Storage;
 
 namespace TasksList.Infrastructure.Tests.Storage;
@@ -113,6 +114,45 @@ public sealed class TasksListDatabaseTests : IAsyncLifetime
         Assert.Equal("clip 249", captures[0].PreviewText);
         Assert.Equal("clip 249", captures[0].TextRepresentations["text/plain"]);
         Assert.Equal("clip 0", captures[^1].PreviewText);
+    }
+
+    [Fact]
+    public async Task ClipboardMetadataAndCompoundQueryRoundTrip()
+    {
+        var database = new TasksListDatabase(Path.Combine(_directory, "clipboard-metadata.db"));
+        await database.InitializeAsync();
+        var source = ContextRef.Create(ContextKind.BrowserTab, "browser", "https://example.test", "Example tab");
+        var note = Note.Create("Release", "Ship it");
+        var now = DateTimeOffset.Parse("2026-07-18T20:00:00Z");
+        var capture = Capture.Create(CaptureKind.Html, source.Id, "release checklist", now)
+            .WithTextRepresentation("text/plain", "release checklist")
+            .WithFavorite(true)
+            .MarkUsed(now.AddMinutes(1))
+            .Rename("Ship list", now.AddMinutes(2))
+            .WithSourceUrl("https://example.test/release")
+            .WithDuplicateHash("ABC123")
+            .AssignToNote(note.Id);
+
+        await database.SaveContextAsync(source);
+        await database.SaveNoteAsync(note);
+        await database.SaveCaptureAsync(capture);
+        var matches = await database.SearchCapturesAsync(new ClipboardQuery
+        {
+            Text = "checklist",
+            Favorite = true,
+            Used = true,
+            SourceContextIds = [source.Id],
+            Kinds = [CaptureKind.Html],
+        }, 20);
+
+        var loaded = Assert.Single(matches);
+        Assert.Equal("Ship list", loaded.Title);
+        Assert.True(loaded.IsFavorite);
+        Assert.NotNull(loaded.UsedAt);
+        Assert.Equal("https://example.test/release", loaded.SourceUrl);
+        Assert.Equal("ABC123", loaded.DuplicateHash);
+        Assert.True(loaded.SizeBytes > 0);
+        Assert.Contains(note.Id, loaded.AssignedNoteIds);
     }
 
     [Fact]

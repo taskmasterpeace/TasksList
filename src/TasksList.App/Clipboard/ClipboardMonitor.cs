@@ -1,7 +1,10 @@
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using System.Windows.Media.Imaging;
 using TasksList.Core.Models;
 
 namespace TasksList.App.Clipboard;
@@ -10,7 +13,10 @@ public sealed record ClipboardSnapshot(
     CaptureKind Kind,
     string PreviewText,
     IReadOnlyDictionary<string, string> TextRepresentations,
-    ContextRef Source);
+    ContextRef Source,
+    string? SourceUrl = null,
+    byte[]? ImagePng = null,
+    IReadOnlyList<string>? Files = null);
 
 public sealed class ClipboardMonitor : IDisposable
 {
@@ -19,8 +25,16 @@ public sealed class ClipboardMonitor : IDisposable
     private readonly Func<ClipboardSnapshot, Task> _onCaptured;
     private HwndSource? _source;
     private nint _handle;
+    private DateTimeOffset _suppressUntil;
 
     public bool IsPaused { get; set; }
+
+    public List<string> ExcludedApplications { get; set; } = [];
+
+    public long MaximumCaptureBytes { get; set; } = 20 * 1024 * 1024;
+
+    public void SuppressNextChange(TimeSpan duration) =>
+        _suppressUntil = DateTimeOffset.Now.Add(duration);
 
     public ClipboardMonitor(Window window, Func<ClipboardSnapshot, Task> onCaptured)
     {
@@ -99,7 +113,10 @@ public sealed class ClipboardMonitor : IDisposable
                     return;
                 }
 
+                var formats = data.GetFormats(autoConvert: false).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var representations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                byte[]? imagePng = null;
+                IReadOnlyList<string>? files = null;
                 if (data.GetDataPresent(DataFormats.UnicodeText) && data.GetData(DataFormats.UnicodeText) is string plain)
                 {
                     representations["text/plain"] = plain;
@@ -113,21 +130,71 @@ public sealed class ClipboardMonitor : IDisposable
                     representations["text/rtf"] = rtf;
                 }
 
-                if (representations.Count == 0)
+                if (data.GetDataPresent(DataFormats.Bitmap) &&
+                    data.GetData(DataFormats.Bitmap) is BitmapSource bitmap)
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = new MemoryStream();
+                    encoder.Save(stream);
+                    imagePng = stream.ToArray();
+                }
+                if (data.GetDataPresent(DataFormats.FileDrop) &&
+                    data.GetData(DataFormats.FileDrop) is string[] droppedFiles)
+                {
+                    files = droppedFiles;
+                }
+
+                if (representations.Count == 0 && imagePng is null && files is null)
                 {
                     return;
                 }
 
-                var preview = representations.TryGetValue("text/plain", out var text)
-                    ? text
-                    : representations.Values.First();
-                var kind = representations.ContainsKey("text/rtf")
+                var preview = imagePng is not null
+                    ? $"Image {BitmapSize(data)}"
+                    : files is not null
+                        ? string.Join(Environment.NewLine, files.Select(Path.GetFileName))
+                        : representations.TryGetValue("text/plain", out var text)
+                            ? text
+                            : representations.Values.First();
+                var kind = imagePng is not null
+                    ? CaptureKind.Image
+                    : files is not null
+                        ? CaptureKind.Files
+                        : representations.ContainsKey("text/rtf")
                     ? CaptureKind.RichText
                     : representations.ContainsKey("text/html")
                         ? CaptureKind.Html
                         : CaptureKind.Text;
                 var source = ForegroundContextReader.Read();
-                await _onCaptured(new ClipboardSnapshot(kind, preview, representations, source));
+                var sizeBytes = representations.Values.Sum(Encoding.UTF8.GetByteCount) +
+                                (imagePng?.LongLength ?? 0) +
+                                (files?.Sum(file => Encoding.UTF8.GetByteCount(file)) ?? 0);
+                var candidate = new ClipboardCaptureCandidate(
+                    source,
+                    formats,
+                    sizeBytes,
+                    DateTimeOffset.Now <= _suppressUntil);
+                if (!ClipboardCapturePolicy.ShouldCapture(
+                        candidate,
+                        new ClipboardCaptureRules(
+                            IsPaused,
+                            ExcludedApplications,
+                            MaximumCaptureBytes)))
+                {
+                    return;
+                }
+                var sourceUrl = representations.TryGetValue("text/html", out var capturedHtml)
+                    ? ExtractSourceUrl(capturedHtml)
+                    : null;
+                await _onCaptured(new ClipboardSnapshot(
+                    kind,
+                    preview,
+                    representations,
+                    source,
+                    sourceUrl,
+                    imagePng,
+                    files));
                 return;
             }
             catch (COMException) when (attempt < 3)
@@ -135,6 +202,23 @@ public sealed class ClipboardMonitor : IDisposable
                 await Task.Delay(35 * (attempt + 1));
             }
         }
+    }
+
+    private static string BitmapSize(IDataObject data) =>
+        data.GetData(DataFormats.Bitmap) is BitmapSource bitmap
+            ? $"{bitmap.PixelWidth} × {bitmap.PixelHeight}"
+            : string.Empty;
+
+    private static string? ExtractSourceUrl(string html)
+    {
+        foreach (var line in html.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (line.StartsWith("SourceURL:", StringComparison.OrdinalIgnoreCase))
+            {
+                return line["SourceURL:".Length..].Trim();
+            }
+        }
+        return null;
     }
 
     [DllImport("user32.dll", SetLastError = true)]

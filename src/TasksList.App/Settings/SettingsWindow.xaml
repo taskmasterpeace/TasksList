@@ -25,6 +25,11 @@
                 </Grid>
                 <CheckBox x:Name="ReduceMotionCheck" Content="Reduce motion and disable focus fades" Margin="0,13,0,0" />
                 <CheckBox x:Name="PauseMonitoringCheck" Content="Pause clipboard monitoring" Margin="0,10,0,0" />
+                <CheckBox x:Name="PromoteDuplicatesCheck" Content="Promote repeated copies instead of adding duplicates" Margin="0,10,0,0" />
+                <TextBlock Text="Excluded clipboard applications (one executable per line)"
+                           Foreground="{StaticResource MutedTextBrush}" Margin="0,14,0,6" />
+                <TextBox x:Name="ExcludedAppsBox" AcceptsReturn="True" Height="74"
+                         VerticalScrollBarVisibility="Auto" ToolTip="Example: KeePass.exe" />
 
                 <TextBlock Text="Global shortcuts" FontWeight="SemiBold" FontSize="16" Margin="0,26,0,6" />
                 <TextBlock Text="Use forms such as Ctrl+Shift+V. Ghost recovery cannot be removed."

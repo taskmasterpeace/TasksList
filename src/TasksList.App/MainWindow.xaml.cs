@@ -18,6 +18,8 @@ using TasksList.Infrastructure.Storage;
 using CaptureModel = TasksList.Core.Models.Capture;
 using TasksList.Core.Contexts;
 using TasksList.Core.Notes;
+using TasksList.Core.Clipboard;
+using TasksList.App.Shell;
 
 namespace TasksList.App;
 
@@ -30,6 +32,8 @@ public partial class MainWindow : Window
     private readonly Dictionary<NoteId, StickyWindow> _openStickies = [];
     private readonly HashSet<NoteId> _openingStickies = [];
     private readonly ClipboardMonitor _clipboardMonitor;
+    private readonly ClipboardPasteService _clipboardPasteService;
+    private ClipboardPaletteWindow? _clipboardPalette;
     private readonly BrowserBridgeMonitor _browserBridgeMonitor;
     private readonly PayloadStore _payloadStore;
     private readonly string _dataDirectory;
@@ -39,6 +43,11 @@ public partial class MainWindow : Window
     private bool _contextTickRunning;
     private bool _exitRequested;
     private readonly HashSet<NoteId> _activeReminders = [];
+    private bool _promoteDuplicateClips = true;
+    private double _paletteWidth = 940;
+    private double _paletteHeight = 610;
+
+    public event Action<double, double>? ClipboardPaletteSizeChanged;
 
     public MainWindow(TasksListDatabase database, string? dataDirectory = null)
     {
@@ -48,6 +57,9 @@ public partial class MainWindow : Window
         ClipboardList.ItemsSource = _clipboardCards;
         PlacesList.ItemsSource = _placeCards;
         _clipboardMonitor = new ClipboardMonitor(this, CaptureClipboardAsync);
+        _clipboardPasteService = new ClipboardPasteService(
+            new WindowsClipboardPastePlatform(),
+            _clipboardMonitor.SuppressNextChange);
         var resolvedDataDirectory = dataDirectory ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "TasksList");
@@ -65,6 +77,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _clipboardMonitor.Dispose();
+            _clipboardPalette?.DisposePalette();
             _browserBridgeMonitor.Dispose();
             _contextTimer.Stop();
         };
@@ -114,6 +127,9 @@ public partial class MainWindow : Window
     {
         await CaptureRegionAsync();
     }
+
+    private void ClipboardPaletteClick(object sender, RoutedEventArgs e) =>
+        ShowClipboardPaletteFromShell();
 
     public async Task CaptureRegionAsync()
     {
@@ -165,10 +181,49 @@ public partial class MainWindow : Window
         Activate();
     }
 
-    public void ShowClipboardPaletteFromShell()
+    public async void ShowClipboardPaletteFromShell()
     {
-        ShowLibraryFromShell();
-        SearchBox.Focus();
+        if (_clipboardPalette?.IsVisible == true)
+        {
+            _clipboardPalette.Hide();
+            return;
+        }
+        var target = ClipboardTargetReader.ForegroundWindow();
+        _clipboardPalette ??= new ClipboardPaletteWindow(
+            _database,
+            _clipboardPasteService,
+            captures => _ = CreateNoteFromCapturesAsync(captures));
+        _clipboardPalette.Width = _paletteWidth;
+        _clipboardPalette.Height = _paletteHeight;
+        _clipboardPalette.SizePreferenceChanged -= PaletteSizePreferenceChanged;
+        _clipboardPalette.SizePreferenceChanged += PaletteSizePreferenceChanged;
+        await _clipboardPalette.ShowNearPointerAsync(target);
+    }
+
+    private void PaletteSizePreferenceChanged(double width, double height)
+    {
+        _paletteWidth = width;
+        _paletteHeight = height;
+        ClipboardPaletteSizeChanged?.Invoke(width, height);
+    }
+
+    private async Task CreateNoteFromCapturesAsync(IReadOnlyList<CaptureModel> captures)
+    {
+        if (captures.Count == 0) return;
+        var sections = new List<string>();
+        foreach (var capture in captures)
+        {
+            var source = await _database.GetContextAsync(capture.SourceContextId);
+            var text = capture.TextRepresentations.TryGetValue("text/plain", out var plain)
+                ? plain
+                : capture.PreviewText;
+            var heading = string.IsNullOrWhiteSpace(capture.Title) ? capture.Kind.ToString() : capture.Title;
+            sections.Add($"## {heading}\n\n{text}\n\n> Source: {source?.DisplayName ?? "Unknown"} · {capture.CapturedAt:g}");
+        }
+
+        await CreateAndOpenStickyAsync(
+            captures.Count == 1 ? "Clipboard note" : $"Clipboard collection ({captures.Count})",
+            $"# Clipboard collection\n\n{string.Join("\n\n---\n\n", sections)}");
     }
 
     public void ToggleAllNotes()
@@ -190,6 +245,15 @@ public partial class MainWindow : Window
 
     public void SetClipboardMonitoringPaused(bool paused) =>
         _clipboardMonitor.IsPaused = paused;
+
+    public void ApplyClipboardSettings(AppSettings settings)
+    {
+        _clipboardMonitor.IsPaused = settings.MonitoringPaused;
+        _clipboardMonitor.ExcludedApplications = settings.ExcludedClipboardApplications.ToList();
+        _promoteDuplicateClips = settings.PromoteDuplicateClips;
+        _paletteWidth = settings.ClipboardPaletteWidth;
+        _paletteHeight = settings.ClipboardPaletteHeight;
+    }
 
     public void PrepareForExit()
     {
@@ -496,7 +560,27 @@ public partial class MainWindow : Window
         {
             capture = capture.WithTextRepresentation(representation.Key, representation.Value);
         }
-        await _database.SaveCaptureAsync(capture);
+        if (snapshot.ImagePng is { Length: > 0 } png)
+        {
+            var payload = await _payloadStore.PutAsync(png, "image/png");
+            capture = capture.WithTextRepresentation(
+                "application/x-taskslist-payload-path",
+                payload.Path);
+        }
+        if (snapshot.Files is { Count: > 0 } files)
+        {
+            capture = capture.WithTextRepresentation(
+                "application/x-taskslist-files",
+                System.Text.Json.JsonSerializer.Serialize(files));
+        }
+        capture = capture.WithSourceUrl(snapshot.SourceUrl);
+        capture = capture.WithDuplicateHash(ClipboardDuplicatePolicy.ComputeHash(capture));
+        var existing = _promoteDuplicateClips
+            ? await _database.FindCaptureByDuplicateHashAsync(capture.DuplicateHash)
+            : null;
+        await _database.SaveCaptureAsync(existing is null
+            ? capture
+            : ClipboardDuplicatePolicy.Promote(existing, capture.CapturedAt));
         await ReloadClipboardAsync();
         StatusText.Text = $"CAPTURED · {snapshot.Source.DisplayName}";
     }
@@ -505,7 +589,7 @@ public partial class MainWindow : Window
     {
         var captures = await _database.ListCapturesAsync();
         _clipboardCards.Clear();
-        foreach (var capture in captures.Take(50))
+        foreach (var capture in captures.Where(item => item.DeletedAt is null).Take(50))
         {
             var source = await _database.GetContextAsync(capture.SourceContextId);
             _clipboardCards.Add(new ClipboardCardViewModel(capture, source));

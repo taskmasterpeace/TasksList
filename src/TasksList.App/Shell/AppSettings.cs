@@ -40,6 +40,10 @@ public sealed record AppSettings
 
     public bool PromoteDuplicateClips { get; init; } = true;
 
+    public double ClipboardPaletteWidth { get; init; } = 940;
+
+    public double ClipboardPaletteHeight { get; init; } = 610;
+
     public List<string> ExcludedClipboardApplications { get; init; } = [];
 
     public Dictionary<AppHotkeyAction, HotkeyGesture> Hotkeys { get; init; } = [];

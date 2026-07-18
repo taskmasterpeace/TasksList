@@ -187,6 +187,9 @@
                                        Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource GhostButton}" Content="Clipboard palette"
+                                    AutomationProperties.Name="Clipboard palette"
+                                    Margin="0,0,8,0" Click="ClipboardPaletteClick" />
                             <Button Style="{StaticResource GhostButton}" Content="⌗  Capture region"
                                     Margin="0,0,8,0" Click="CaptureRegionClick" />
                             <Button Style="{StaticResource PrimaryButton}" Content="＋  New sticky"
