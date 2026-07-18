@@ -1,12 +1,18 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using TasksList.Core.Models;
+using TasksList.Core.Notes;
 
 namespace TasksList.Infrastructure.Storage;
 
 public sealed class TasksListDatabase
 {
     private readonly string _connectionString;
+    private static readonly JsonSerializerOptions PresentationJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
 
     public TasksListDatabase(string databasePath)
     {
@@ -27,14 +33,213 @@ public sealed class TasksListDatabase
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);
-        const string resourceName = "TasksList.Infrastructure.Storage.Migrations.001_initial.sql";
-        await using var stream = typeof(TasksListDatabase).Assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Missing embedded migration {resourceName}.");
-        using var reader = new StreamReader(stream);
-        var sql = await reader.ReadToEndAsync(cancellationToken);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version TEXT PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                );
+                """;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var resourcePrefix = "TasksList.Infrastructure.Storage.Migrations.";
+        var migrations = typeof(TasksListDatabase).Assembly
+            .GetManifestResourceNames()
+            .Where(name => name.StartsWith(resourcePrefix, StringComparison.Ordinal) &&
+                           name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        foreach (var resourceName in migrations)
+        {
+            var version = resourceName[resourcePrefix.Length..^4];
+            if (await MigrationAppliedAsync(connection, version, cancellationToken))
+            {
+                continue;
+            }
+
+            await using var stream = typeof(TasksListDatabase).Assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidOperationException($"Missing embedded migration {resourceName}.");
+            using var reader = new StreamReader(stream);
+            var sql = await reader.ReadToEndAsync(cancellationToken);
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = sql;
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO schema_migrations (version, applied_at)
+                    VALUES ($version, $appliedAt);
+                    """;
+                command.Parameters.AddWithValue("$version", version);
+                command.Parameters.AddWithValue(
+                    "$appliedAt",
+                    DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+    }
+
+    public async Task SaveNotePresentationAsync(
+        NotePresentation presentation,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = sql;
+        command.CommandText = """
+            INSERT INTO note_presentations (
+                note_id,
+                payload_json,
+                hidden_at,
+                deleted_at,
+                wake_at,
+                reminder_at,
+                created_at,
+                modified_at)
+            VALUES (
+                $noteId,
+                $payloadJson,
+                $hiddenAt,
+                $deletedAt,
+                $wakeAt,
+                $reminderAt,
+                $createdAt,
+                $modifiedAt)
+            ON CONFLICT(note_id) DO UPDATE SET
+                payload_json = excluded.payload_json,
+                hidden_at = excluded.hidden_at,
+                deleted_at = excluded.deleted_at,
+                wake_at = excluded.wake_at,
+                reminder_at = excluded.reminder_at,
+                created_at = excluded.created_at,
+                modified_at = excluded.modified_at;
+            """;
+        command.Parameters.AddWithValue("$noteId", presentation.NoteId.Value.ToString("D"));
+        command.Parameters.AddWithValue(
+            "$payloadJson",
+            JsonSerializer.Serialize(presentation, PresentationJsonOptions));
+        command.Parameters.AddWithValue("$hiddenAt", DbTimestamp(presentation.HiddenAt));
+        command.Parameters.AddWithValue("$deletedAt", DbTimestamp(presentation.DeletedAt));
+        command.Parameters.AddWithValue("$wakeAt", DbTimestamp(presentation.WakeAt));
+        command.Parameters.AddWithValue("$reminderAt", DbTimestamp(presentation.ReminderAt));
+        command.Parameters.AddWithValue("$createdAt", DbTimestamp(presentation.CreatedAt));
+        command.Parameters.AddWithValue("$modifiedAt", DbTimestamp(presentation.ModifiedAt));
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<NotePresentation> GetNotePresentationAsync(
+        NoteId noteId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT payload_json
+            FROM note_presentations
+            WHERE note_id = $noteId;
+            """;
+        command.Parameters.AddWithValue("$noteId", noteId.Value.ToString("D"));
+        var payload = await command.ExecuteScalarAsync(cancellationToken) as string;
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return NotePresentation.Default(noteId);
+        }
+
+        try
+        {
+            var presentation = JsonSerializer.Deserialize<NotePresentation>(
+                payload,
+                PresentationJsonOptions);
+            return presentation is not null && presentation.NoteId == noteId
+                ? presentation
+                : NotePresentation.Default(noteId);
+        }
+        catch (JsonException)
+        {
+            return NotePresentation.Default(noteId);
+        }
+    }
+
+    public async Task SaveNamedStyleAsync(
+        NamedNoteStyle style,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        if (style.IsDefault)
+        {
+            await using var clearDefault = connection.CreateCommand();
+            clearDefault.Transaction = transaction;
+            clearDefault.CommandText = "UPDATE named_styles SET is_default = 0 WHERE is_default <> 0;";
+            await clearDefault.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO named_styles (id, name, payload_json, is_default, modified_at)
+            VALUES ($id, $name, $payloadJson, $isDefault, $modifiedAt)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                payload_json = excluded.payload_json,
+                is_default = excluded.is_default,
+                modified_at = excluded.modified_at;
+            """;
+        command.Parameters.AddWithValue("$id", style.Id.ToString("D"));
+        command.Parameters.AddWithValue("$name", style.Name.Trim());
+        command.Parameters.AddWithValue(
+            "$payloadJson",
+            JsonSerializer.Serialize(style.Style, PresentationJsonOptions));
+        command.Parameters.AddWithValue("$isDefault", style.IsDefault ? 1 : 0);
+        command.Parameters.AddWithValue("$modifiedAt", DbTimestamp(style.ModifiedAt));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<NamedNoteStyle>> ListNamedStylesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var styles = new List<NamedNoteStyle>();
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, name, payload_json, is_default, modified_at
+            FROM named_styles
+            ORDER BY name COLLATE NOCASE, id;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            NoteStyle? style;
+            try
+            {
+                style = JsonSerializer.Deserialize<NoteStyle>(
+                    reader.GetString(2),
+                    PresentationJsonOptions);
+            }
+            catch (JsonException)
+            {
+                style = null;
+            }
+
+            if (style is null)
+            {
+                continue;
+            }
+
+            styles.Add(new NamedNoteStyle(
+                Guid.Parse(reader.GetString(0)),
+                reader.GetString(1),
+                style,
+                reader.GetInt32(3) != 0,
+                DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture)));
+        }
+
+        return styles;
     }
 
     public async Task SaveContextAsync(ContextRef context, CancellationToken cancellationToken = default)
@@ -455,6 +660,22 @@ public sealed class TasksListDatabase
         await connection.OpenAsync(cancellationToken);
         return connection;
     }
+
+    private static async Task<bool> MigrationAppliedAsync(
+        SqliteConnection connection,
+        string version,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM schema_migrations WHERE version = $version LIMIT 1;";
+        command.Parameters.AddWithValue("$version", version);
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
+    }
+
+    private static object DbTimestamp(DateTimeOffset? value) =>
+        value is { } timestamp
+            ? timestamp.ToString("O", CultureInfo.InvariantCulture)
+            : DBNull.Value;
 
     private static async Task DeleteOwnedRowsAsync(
         SqliteConnection connection,
