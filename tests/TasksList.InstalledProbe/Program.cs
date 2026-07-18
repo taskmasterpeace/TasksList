@@ -49,6 +49,7 @@ RequireFile(databasePath, "installed data database", failures);
 var noteCount = 0;
 var captureCount = 0;
 var favoriteCaptureCount = 0;
+string? expectedFavoriteCapture = null;
 InstalledNoteResult? expectedNote = null;
 if (File.Exists(databasePath))
 {
@@ -82,7 +83,19 @@ if (File.Exists(databasePath))
                 presentation.Rolled,
                 presentation.Locked,
                 presentation.Ghost,
-                presentation.EditorMode.ToString());
+                presentation.EditorMode.ToString(),
+                presentation.WakeAt,
+                presentation.ReminderAt);
+            if (options.TryGetValue("expect-markdown-contains", out var markdownFragment) &&
+                !note.Markdown.Contains(markdownFragment, StringComparison.Ordinal))
+            {
+                failures.Add($"Expected note Markdown to contain '{markdownFragment}'.");
+            }
+            if (options.ContainsKey("require-note-provenance") &&
+                !note.Markdown.Contains("> Source:", StringComparison.Ordinal))
+            {
+                failures.Add("Expected note Markdown to retain a source provenance line.");
+            }
             if (options.TryGetValue("expect-preset", out var preset) &&
                 !string.Equals(expectedNote.Preset, preset, StringComparison.OrdinalIgnoreCase))
             {
@@ -96,11 +109,38 @@ if (File.Exists(databasePath))
             }
             ValidateBoolean(options, "expect-topmost", expectedNote.Topmost, failures);
             ValidateBoolean(options, "expect-rolled", expectedNote.Rolled, failures);
+            ValidateBoolean(options, "expect-ghost", expectedNote.Ghost, failures);
+            if (options.ContainsKey("require-sleeping") && expectedNote.WakeAt is null)
+            {
+                failures.Add("Expected note to have a scheduled wake time.");
+            }
+            if (options.ContainsKey("require-reminder") && expectedNote.ReminderAt is null)
+            {
+                failures.Add("Expected note to have a scheduled reminder.");
+            }
+            if (options.TryGetValue("expect-editor-mode", out var editorMode) &&
+                !string.Equals(expectedNote.EditorMode, editorMode, StringComparison.OrdinalIgnoreCase))
+            {
+                failures.Add($"Expected editor mode {editorMode}; found {expectedNote.EditorMode}.");
+            }
         }
     }
     if (options.ContainsKey("require-favorite-capture") && favoriteCaptureCount == 0)
     {
         failures.Add("Expected at least one favorite clipboard capture.");
+    }
+    if (options.TryGetValue("expect-favorite-text", out var favoriteText))
+    {
+        var favorite = captures.FirstOrDefault(capture =>
+            capture.IsFavorite && capture.PreviewText.Contains(favoriteText, StringComparison.Ordinal));
+        if (favorite is null)
+        {
+            failures.Add($"Expected a favorite clipboard capture containing '{favoriteText}'.");
+        }
+        else
+        {
+            expectedFavoriteCapture = favorite.PreviewText;
+        }
     }
 }
 
@@ -112,6 +152,7 @@ var report = new InstalledProbeReport(
     noteCount,
     captureCount,
     favoriteCaptureCount,
+    expectedFavoriteCapture,
     expectedNote,
     failures);
 Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
@@ -170,7 +211,9 @@ internal sealed record InstalledNoteResult(
     bool Rolled,
     bool Locked,
     bool Ghost,
-    string EditorMode);
+    string EditorMode,
+    DateTimeOffset? WakeAt,
+    DateTimeOffset? ReminderAt);
 
 internal sealed record InstalledProbeReport(
     string InstallRoot,
@@ -180,5 +223,6 @@ internal sealed record InstalledProbeReport(
     int NoteCount,
     int CaptureCount,
     int FavoriteCaptureCount,
+    string? ExpectedFavoriteCapture,
     InstalledNoteResult? ExpectedNote,
     IReadOnlyList<string> Failures);

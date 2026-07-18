@@ -26,6 +26,14 @@
                 <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.72" /></Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="PaletteCombo" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#E8E4DC" />
+            <Setter Property="Background" Value="#252A2E" />
+            <Setter Property="BorderBrush" Value="#41494E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="MinHeight" Value="32" />
+        </Style>
     </Window.Resources>
     <Border Background="#F217191B" BorderBrush="#505A6165" BorderThickness="1" CornerRadius="14">
         <Border.Effect><DropShadowEffect BlurRadius="28" ShadowDepth="9" Opacity="0.55" /></Border.Effect>
@@ -49,18 +57,18 @@
                 <ToggleButton x:Name="FavoriteFilter" Content="★ Favorites" Style="{StaticResource FilterToggle}" Checked="FilterChanged" Unchecked="FilterChanged" />
                 <ToggleButton x:Name="UsedFilter" Grid.Column="1" Content="Used" Style="{StaticResource FilterToggle}" Checked="FilterChanged" Unchecked="FilterChanged" />
                 <ToggleButton x:Name="UnfiledFilter" Grid.Column="2" Content="Unfiled" Style="{StaticResource FilterToggle}" Checked="FilterChanged" Unchecked="FilterChanged" />
-                <ComboBox x:Name="TypeFilter" Grid.Column="4" SelectionChanged="FilterChanged">
+                <ComboBox x:Name="TypeFilter" Grid.Column="4" Style="{StaticResource PaletteCombo}" SelectionChanged="FilterChanged">
                     <ComboBoxItem Content="All types" Tag="All" IsSelected="True" />
                     <ComboBoxItem Content="Text" Tag="Text" /><ComboBoxItem Content="HTML" Tag="Html" />
                     <ComboBoxItem Content="Rich text" Tag="RichText" /><ComboBoxItem Content="Markdown" Tag="Markdown" />
                     <ComboBoxItem Content="Images" Tag="Image" /><ComboBoxItem Content="Files" Tag="Files" />
                 </ComboBox>
-                <ComboBox x:Name="DateFilter" Grid.Column="6" SelectionChanged="FilterChanged">
+                <ComboBox x:Name="DateFilter" Grid.Column="6" Style="{StaticResource PaletteCombo}" SelectionChanged="FilterChanged">
                     <ComboBoxItem Content="Any date" Tag="All" IsSelected="True" />
                     <ComboBoxItem Content="Today" Tag="Today" /><ComboBoxItem Content="Last 7 days" Tag="7" />
                     <ComboBoxItem Content="Last 30 days" Tag="30" />
                 </ComboBox>
-                <ComboBox x:Name="SourceFilter" Grid.Column="8" DisplayMemberPath="DisplayName"
+                <ComboBox x:Name="SourceFilter" Grid.Column="8" Style="{StaticResource PaletteCombo}" DisplayMemberPath="DisplayName"
                           SelectionChanged="FilterChanged" ToolTip="Source application" />
             </Grid>
 
@@ -98,7 +106,8 @@
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <StackPanel>
-                            <TextBlock x:Name="PreviewTitle" Text="Select a clipboard item" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock x:Name="PreviewTitle" Text="Select a clipboard item" FontSize="18" FontWeight="SemiBold"
+                                       Foreground="#F3EFE7" TextWrapping="Wrap" />
                             <TextBlock x:Name="ProvenanceText" Foreground="#8FA09E" FontSize="11" Margin="0,7,0,12" TextWrapping="Wrap" />
                         </StackPanel>
                         <Grid Grid.Row="1">
@@ -110,7 +119,8 @@
                         </Grid>
                         <Grid Grid.Row="2" Margin="0,12,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
-                            <ComboBox x:Name="PlaceBox" DisplayMemberPath="Name" ToolTip="Assign selected clips to a Place or note" />
+                            <ComboBox x:Name="PlaceBox" Style="{StaticResource PaletteCombo}" DisplayMemberPath="Name"
+                                      ToolTip="Assign selected clips to a Place or note" />
                             <Button Grid.Column="2" Content="Assign selected" Style="{StaticResource ActionButton}" Click="AssignClick" />
                         </Grid>
                     </Grid>
