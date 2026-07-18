@@ -64,6 +64,9 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="ContextText" Text="UNATTACHED" Foreground="#826C4D"
                                FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Content="ATTACH" Foreground="#5C4930" Background="#18FFFFFF"
+                            BorderThickness="0" Padding="7,3" Margin="8,0,0,0" FontSize="9" FontWeight="Bold"
+                            Cursor="Hand" Click="AttachClick" ToolTip="Attach this sticky to the last application you were using" />
                     <Button x:Name="ModeButton" Content="PREVIEW" Foreground="#5C4930" Background="#18FFFFFF"
                             BorderThickness="0" Padding="7,3" Margin="9,0,0,0" FontSize="9" FontWeight="Bold"
                             Cursor="Hand" Click="ModeClick" />

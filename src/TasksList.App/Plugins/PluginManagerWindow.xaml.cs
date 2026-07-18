@@ -1,6 +1,5 @@
 using Microsoft.Win32;
 using System.IO;
-using System.IO.Compression;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -52,16 +51,17 @@ public partial class PluginManagerWindow : Window
 
         try
         {
-            using var archive = ZipFile.OpenRead(picker.FileName);
-            var manifestEntry = archive.Entries.SingleOrDefault(entry =>
-                string.Equals(entry.FullName, "plugin.json", StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidDataException("The package has no root plugin.json manifest.");
-            using var reader = new StreamReader(manifestEntry.Open());
-            var manifest = PluginManifest.Parse(reader.ReadToEnd());
-            PluginManifestValidator.Validate(manifest, 1);
+            var pluginsRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "TasksList",
+                "plugins");
+            var installed = PluginPackageInstaller.Install(picker.FileName, pluginsRoot);
+            _plugins.Add(new PluginCardViewModel(installed.Manifest));
+            PluginList.Items.Refresh();
+            var manifest = installed.Manifest;
             MessageBox.Show(
-                $"{manifest.Name} is compatible. Installation is held for explicit capability approval.",
-                "Plugin validated",
+                $"{manifest.Name} was installed. Its capabilities remain denied until you review and enable them.",
+                "Plugin installed",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }

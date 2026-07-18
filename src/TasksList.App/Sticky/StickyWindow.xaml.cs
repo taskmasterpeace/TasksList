@@ -13,16 +13,18 @@ public partial class StickyWindow : Window
     private readonly TasksListDatabase _database;
     private readonly DispatcherTimer _saveTimer;
     private readonly MarkdownDocumentService _markdownService = new();
+    private readonly Func<ContextRef?> _contextProvider;
     private Note _note;
     private bool _isLoading = true;
     private bool _isRolled;
     private double _expandedHeight;
     private bool _isPreviewing;
 
-    public StickyWindow(Note note, TasksListDatabase database)
+    public StickyWindow(Note note, TasksListDatabase database, Func<ContextRef?>? contextProvider = null)
     {
         _note = note;
         _database = database;
+        _contextProvider = contextProvider ?? (() => null);
         InitializeComponent();
         TitleBox.Text = note.Title;
         MarkdownBox.Text = note.Markdown;
@@ -33,6 +35,8 @@ public partial class StickyWindow : Window
     }
 
     public event EventHandler? NoteSaved;
+
+    public Note CurrentNote => _note;
 
     private void ContentChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
@@ -62,6 +66,26 @@ public partial class StickyWindow : Window
             ? System.Windows.Media.Brushes.SeaGreen
             : System.Windows.Media.Brushes.SaddleBrown;
         PinButton.ToolTip = Topmost ? "Always on top" : "Normal window level";
+    }
+
+    private async void AttachClick(object sender, RoutedEventArgs e)
+    {
+        var context = _contextProvider();
+        if (context is null)
+        {
+            MessageBox.Show(
+                "Switch to the application you want, return to this sticky, then choose Attach.",
+                "No application context yet",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        await _database.SaveContextAsync(context);
+        _note = _note.AttachTo(context.Id, AttachmentVisibility.ForegroundOnly);
+        await _database.SaveNoteAsync(_note);
+        ContextText.Text = $"ATTACHED · {context.DisplayName}";
+        NoteSaved?.Invoke(this, EventArgs.Empty);
     }
 
     private void ModeClick(object sender, RoutedEventArgs e)

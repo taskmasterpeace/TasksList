@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using TasksList.App.Sticky;
 using TasksList.App.Clipboard;
 using TasksList.App.Capture;
@@ -14,6 +15,7 @@ using TasksList.App.Plugins;
 using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
 using CaptureModel = TasksList.Core.Models.Capture;
+using TasksList.Core.Contexts;
 
 namespace TasksList.App;
 
@@ -27,7 +29,11 @@ public partial class MainWindow : Window
     private readonly ClipboardMonitor _clipboardMonitor;
     private readonly BrowserBridgeMonitor _browserBridgeMonitor;
     private readonly PayloadStore _payloadStore;
+    private readonly string _dataDirectory;
     private IReadOnlyList<LiveBrowserTab> _liveBrowserTabs = [];
+    private readonly DispatcherTimer _contextTimer;
+    private ContextRef? _lastExternalContext;
+    private bool _contextTickRunning;
 
     public MainWindow(TasksListDatabase database, string? dataDirectory = null)
     {
@@ -40,17 +46,21 @@ public partial class MainWindow : Window
         var resolvedDataDirectory = dataDirectory ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "TasksList");
+        _dataDirectory = resolvedDataDirectory;
         _payloadStore = new PayloadStore(Path.Combine(resolvedDataDirectory, "payloads"));
         var browserBridgePath = Path.Combine(
             resolvedDataDirectory,
             "bridge",
             "browser-tabs.json");
         _browserBridgeMonitor = new BrowserBridgeMonitor(browserBridgePath, BrowserSnapshotChangedAsync);
+        _contextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
+        _contextTimer.Tick += ContextTimerTick;
         Loaded += OnLoaded;
         Closed += (_, _) =>
         {
             _clipboardMonitor.Dispose();
             _browserBridgeMonitor.Dispose();
+            _contextTimer.Stop();
         };
     }
 
@@ -60,6 +70,7 @@ public partial class MainWindow : Window
         await ReloadNotesAsync(createWelcomeNote: true);
         await ReloadClipboardAsync();
         await ReloadPlacesAsync();
+        _contextTimer.Start();
     }
 
     private async Task ReloadNotesAsync(bool createWelcomeNote = false)
@@ -143,7 +154,7 @@ public partial class MainWindow : Window
         }
 
         var index = _openStickies.Count;
-        var sticky = new StickyWindow(note, _database)
+        var sticky = new StickyWindow(note, _database, () => _lastExternalContext)
         {
             Left = Left + 310 + (index * 28),
             Top = Top + 120 + (index * 24),
@@ -152,6 +163,54 @@ public partial class MainWindow : Window
         sticky.Closed += (_, _) => _openStickies.Remove(note.Id);
         _openStickies[note.Id] = sticky;
         sticky.Show();
+    }
+
+    private async void ContextTimerTick(object? sender, EventArgs e)
+    {
+        if (_contextTickRunning)
+        {
+            return;
+        }
+
+        _contextTickRunning = true;
+        try
+        {
+            var observed = ForegroundContextReader.Read();
+            if (!observed.StableIdentity.Contains("TasksList.App", StringComparison.OrdinalIgnoreCase))
+            {
+                _lastExternalContext = observed;
+            }
+
+            if (_lastExternalContext is null)
+            {
+                return;
+            }
+
+            var notes = await _database.ListNotesAsync();
+            foreach (var note in notes.Where(note => note.Attachments.Count > 0))
+            {
+                var shouldShow = AttachmentVisibilityPolicy.ShouldShow(note, _lastExternalContext.Id);
+                if (shouldShow && !_openStickies.ContainsKey(note.Id))
+                {
+                    OpenSticky(note);
+                }
+                else if (_openStickies.TryGetValue(note.Id, out var sticky))
+                {
+                    if (shouldShow && !sticky.IsVisible)
+                    {
+                        sticky.Show();
+                    }
+                    else if (!shouldShow && sticky.IsVisible)
+                    {
+                        sticky.Hide();
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _contextTickRunning = false;
+        }
     }
 
     private async Task CaptureClipboardAsync(ClipboardSnapshot snapshot)
@@ -255,7 +314,15 @@ public partial class MainWindow : Window
 
     private void PluginsClick(object sender, RoutedEventArgs e)
     {
-        var catalog = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
+        var bundled = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
+        var personal = PluginCatalog.Load(Path.Combine(_dataDirectory, "plugins"));
+        var catalog = new PluginCatalogSnapshot(
+            bundled.Plugins.Concat(personal.Plugins)
+                .GroupBy(entry => entry.Manifest.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.OrderByDescending(entry => entry.Manifest.Version, StringComparer.Ordinal).First())
+                .OrderBy(entry => entry.Manifest.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            bundled.Errors.Concat(personal.Errors).ToArray());
         var window = new PluginManagerWindow(catalog) { Owner = this };
         window.ShowDialog();
     }
