@@ -105,6 +105,93 @@ public sealed class TasksListDatabase
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Place>> ListPlacesAsync(CancellationToken cancellationToken = default)
+    {
+        var places = new List<Place>();
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, kind, name, parent_id, stable_identity
+            FROM places
+            ORDER BY name COLLATE NOCASE, rowid;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            places.Add(new Place(
+                new PlaceId(Guid.Parse(reader.GetString(0))),
+                (PlaceKind)reader.GetInt32(1),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : new PlaceId(Guid.Parse(reader.GetString(3))),
+                reader.GetString(4)));
+        }
+
+        return places;
+    }
+
+    public async Task SaveBrowserSessionAsync(
+        Place sessionPlace,
+        IReadOnlyCollection<SavedTab> tabs,
+        CancellationToken cancellationToken = default)
+    {
+        if (sessionPlace.Kind != PlaceKind.BrowserSession)
+        {
+            throw new ArgumentException("The Place must be a browser session.", nameof(sessionPlace));
+        }
+
+        await SavePlaceAsync(sessionPlace, cancellationToken);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await DeleteOwnedRowsAsync(connection, transaction, "saved_tabs", "session_place_id", sessionPlace.Id.Value, cancellationToken);
+        foreach (var tab in tabs.OrderBy(tab => tab.WindowIndex).ThenBy(tab => tab.TabIndex))
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO saved_tabs (id, session_place_id, url, title, window_index, tab_index)
+                VALUES ($id, $sessionPlaceId, $url, $title, $windowIndex, $tabIndex);
+                """;
+            command.Parameters.AddWithValue("$id", tab.Id.Value.ToString("D"));
+            command.Parameters.AddWithValue("$sessionPlaceId", tab.SessionPlaceId.Value.ToString("D"));
+            command.Parameters.AddWithValue("$url", tab.Url);
+            command.Parameters.AddWithValue("$title", tab.Title);
+            command.Parameters.AddWithValue("$windowIndex", tab.WindowIndex);
+            command.Parameters.AddWithValue("$tabIndex", tab.TabIndex);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<SavedTab>> ListSavedTabsAsync(
+        PlaceId sessionPlaceId,
+        CancellationToken cancellationToken = default)
+    {
+        var tabs = new List<SavedTab>();
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, url, title, window_index, tab_index
+            FROM saved_tabs
+            WHERE session_place_id = $sessionPlaceId
+            ORDER BY window_index, tab_index, rowid;
+            """;
+        command.Parameters.AddWithValue("$sessionPlaceId", sessionPlaceId.Value.ToString("D"));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            tabs.Add(new SavedTab(
+                new SavedTabId(Guid.Parse(reader.GetString(0))),
+                sessionPlaceId,
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetInt32(3),
+                reader.GetInt32(4)));
+        }
+
+        return tabs;
+    }
+
     public async Task SaveNoteAsync(Note note, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);

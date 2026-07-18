@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS capture_representations (
     PRIMARY KEY(capture_id, media_type)
 );
 
+CREATE TABLE IF NOT EXISTS saved_tabs (
+    id TEXT PRIMARY KEY,
+    session_place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    window_index INTEGER NOT NULL,
+    tab_index INTEGER NOT NULL
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS captures_fts USING fts5(
     capture_id UNINDEXED,
     preview_text,

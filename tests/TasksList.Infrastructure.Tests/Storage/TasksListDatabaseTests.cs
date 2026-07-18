@@ -114,4 +114,30 @@ public sealed class TasksListDatabaseTests : IAsyncLifetime
         Assert.Equal("clip 249", captures[0].TextRepresentations["text/plain"]);
         Assert.Equal("clip 0", captures[^1].PreviewText);
     }
+
+    [Fact]
+    public async Task BrowserSessionRoundTripsWithManualHierarchyAndDuplicateTabs()
+    {
+        var database = new TasksListDatabase(Path.Combine(_directory, "taskslist.db"));
+        await database.InitializeAsync();
+        var browser = Place.Create(PlaceKind.Browser, "Microsoft Edge", null, "edge");
+        var manual = Place.Create(PlaceKind.ManualGroup, "Research", browser.Id, "manual:research");
+        var sessionPlace = Place.Create(PlaceKind.BrowserSession, "Friday tabs", manual.Id, "session:friday");
+        var tabs = new[]
+        {
+            SavedTab.Create(sessionPlace.Id, "https://example.com", "Example", 0, 0),
+            SavedTab.Create(sessionPlace.Id, "https://example.com", "Example copy", 0, 1),
+        };
+
+        await database.SavePlaceAsync(browser);
+        await database.SavePlaceAsync(manual);
+        await database.SaveBrowserSessionAsync(sessionPlace, tabs);
+        var places = await database.ListPlacesAsync();
+        var loadedTabs = await database.ListSavedTabsAsync(sessionPlace.Id);
+
+        Assert.Equal(3, places.Count);
+        Assert.Equal(browser.Id, places.Single(place => place.Id == manual.Id).ParentId);
+        Assert.Equal(2, loadedTabs.Count);
+        Assert.Equal(new[] { 0, 1 }, loadedTabs.Select(tab => tab.TabIndex));
+    }
 }

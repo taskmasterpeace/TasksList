@@ -144,22 +144,25 @@
                                 </Button>
                                 <TextBlock Text="M Y  G R O U P S" FontSize="10" FontWeight="Bold"
                                            Foreground="{StaticResource MutedTextBrush}" Margin="7,22,0,7" />
-                                <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="▾" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,7,0" />
-                                        <TextBlock Text="Release research" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left" Padding="28,7,10,7">
-                                    <TextBlock Text="Read later" Foreground="{StaticResource MutedTextBrush}" />
-                                </Button>
-                                <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left" Padding="28,7,10,7">
-                                    <TextBlock Text="Deployment references" Foreground="{StaticResource MutedTextBrush}" />
-                                </Button>
+                                <ItemsControl x:Name="PlacesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left"
+                                                    ToolTip="{Binding StableIdentity}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Prefix}" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,7,0" />
+                                                    <TextBlock Text="{Binding Name}" />
+                                                    <TextBlock Text="{Binding KindLabel}" FontSize="9" Foreground="#778285"
+                                                               Margin="7,2,0,0" />
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
                         <Button Grid.Row="3" Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left"
-                                Content="＋  New place" Foreground="{StaticResource MutedTextBrush}" />
+                                Content="＋  New place" Foreground="{StaticResource MutedTextBrush}" Click="NewPlaceClick" />
                     </Grid>
                 </Border>
 

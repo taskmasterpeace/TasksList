@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using TasksList.App.Sticky;
 using TasksList.App.Clipboard;
+using TasksList.App.Places;
 using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
 
@@ -16,6 +17,7 @@ public partial class MainWindow : Window
     private readonly TasksListDatabase _database;
     private readonly ObservableCollection<NoteCardViewModel> _notes = [];
     private readonly ObservableCollection<ClipboardCardViewModel> _clipboardCards = [];
+    private readonly ObservableCollection<PlaceCardViewModel> _placeCards = [];
     private readonly Dictionary<NoteId, StickyWindow> _openStickies = [];
     private readonly ClipboardMonitor _clipboardMonitor;
 
@@ -25,6 +27,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         NotesList.ItemsSource = _notes;
         ClipboardList.ItemsSource = _clipboardCards;
+        PlacesList.ItemsSource = _placeCards;
         _clipboardMonitor = new ClipboardMonitor(this, CaptureClipboardAsync);
         Loaded += OnLoaded;
         Closed += (_, _) => _clipboardMonitor.Dispose();
@@ -35,6 +38,7 @@ public partial class MainWindow : Window
         Loaded -= OnLoaded;
         await ReloadNotesAsync(createWelcomeNote: true);
         await ReloadClipboardAsync();
+        await ReloadPlacesAsync();
     }
 
     private async Task ReloadNotesAsync(bool createWelcomeNote = false)
@@ -125,6 +129,43 @@ public partial class MainWindow : Window
             var source = await _database.GetContextAsync(capture.SourceContextId);
             _clipboardCards.Add(new ClipboardCardViewModel(capture, source));
         }
+    }
+
+    private async Task ReloadPlacesAsync()
+    {
+        var places = await _database.ListPlacesAsync();
+        var byId = places.ToDictionary(place => place.Id);
+        _placeCards.Clear();
+        foreach (var place in places.Where(place =>
+                     place.Kind is PlaceKind.ManualGroup or PlaceKind.BrowserSession or PlaceKind.Project))
+        {
+            var depth = 0;
+            var parent = place.ParentId;
+            while (parent is { } parentId && byId.TryGetValue(parentId, out var parentPlace))
+            {
+                depth++;
+                parent = parentPlace.ParentId;
+            }
+            _placeCards.Add(new PlaceCardViewModel(place, depth));
+        }
+    }
+
+    private async void NewPlaceClick(object sender, RoutedEventArgs e)
+    {
+        var places = await _database.ListPlacesAsync();
+        var dialog = new NewPlaceDialog(places) { Owner = this };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var place = Place.Create(
+            PlaceKind.ManualGroup,
+            dialog.PlaceName,
+            dialog.ParentPlaceId,
+            $"manual:{Guid.NewGuid():N}");
+        await _database.SavePlaceAsync(place);
+        await ReloadPlacesAsync();
     }
 
     private async void ClipToNoteClick(object sender, RoutedEventArgs e)
@@ -306,4 +347,23 @@ public sealed class ClipboardCardViewModel
         CaptureKind.Markdown => "MARKDOWN",
         _ => "TEXT",
     };
+}
+
+public sealed class PlaceCardViewModel
+{
+    public PlaceCardViewModel(Place place, int depth)
+    {
+        Place = place;
+        Prefix = depth == 0 ? "▾" : new string(' ', depth * 2) + "↳";
+    }
+
+    public Place Place { get; }
+
+    public string Name => Place.Name;
+
+    public string Prefix { get; }
+
+    public string StableIdentity => Place.StableIdentity;
+
+    public string KindLabel => Place.Kind == PlaceKind.BrowserSession ? "SESSION" : string.Empty;
 }
