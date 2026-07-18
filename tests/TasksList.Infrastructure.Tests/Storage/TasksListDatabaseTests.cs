@@ -71,7 +71,9 @@ public sealed class TasksListDatabaseTests : IAsyncLifetime
         var matches = await database.SearchCapturesAsync("unused data", 20);
 
         var loaded = Assert.Single(matches);
+        var loadedSource = await database.GetContextAsync(loaded.SourceContextId);
         Assert.Equal(source.Id, loaded.SourceContextId);
+        Assert.Equal("Docker prune documentation", loadedSource?.DisplayName);
         Assert.Equal(2, loaded.Assignments.Count);
     }
 
@@ -86,5 +88,30 @@ public sealed class TasksListDatabaseTests : IAsyncLifetime
         var notes = await database.ListNotesAsync();
 
         Assert.Equal(new[] { "Alpha", "Zebra" }, notes.Select(note => note.Title));
+    }
+
+    [Fact]
+    public async Task ListCapturesReturnsEverySavedItemNewestFirst()
+    {
+        var database = new TasksListDatabase(Path.Combine(_directory, "taskslist.db"));
+        await database.InitializeAsync();
+        var source = ContextRef.Create(ContextKind.Application, "windows", "test-app", "Test App");
+        await database.SaveContextAsync(source);
+        for (var index = 0; index < 250; index++)
+        {
+            await database.SaveCaptureAsync(Capture.Create(
+                    CaptureKind.Text,
+                    source.Id,
+                    $"clip {index}",
+                    DateTimeOffset.Parse("2026-07-18T18:00:00-04:00").AddSeconds(index))
+                .WithTextRepresentation("text/plain", $"clip {index}"));
+        }
+
+        var captures = await database.ListCapturesAsync();
+
+        Assert.Equal(250, captures.Count);
+        Assert.Equal("clip 249", captures[0].PreviewText);
+        Assert.Equal("clip 249", captures[0].TextRepresentations["text/plain"]);
+        Assert.Equal("clip 0", captures[^1].PreviewText);
     }
 }

@@ -20,7 +20,8 @@ public sealed record Capture
         ContextId sourceContextId,
         string previewText,
         DateTimeOffset capturedAt,
-        ImmutableArray<Assignment> assignments)
+        ImmutableArray<Assignment> assignments,
+        ImmutableDictionary<string, string> textRepresentations)
     {
         Id = id;
         Kind = kind;
@@ -28,6 +29,7 @@ public sealed record Capture
         PreviewText = previewText;
         CapturedAt = capturedAt;
         Assignments = assignments;
+        TextRepresentations = textRepresentations;
     }
 
     public CaptureId Id { get; }
@@ -42,6 +44,8 @@ public sealed record Capture
 
     public IReadOnlyList<Assignment> Assignments { get; }
 
+    public IReadOnlyDictionary<string, string> TextRepresentations { get; }
+
     public static Capture Create(
         CaptureKind kind,
         ContextId sourceContextId,
@@ -53,7 +57,8 @@ public sealed record Capture
             sourceContextId,
             previewText,
             capturedAt,
-            ImmutableArray<Assignment>.Empty);
+            ImmutableArray<Assignment>.Empty,
+            ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase));
 
     public static Capture Restore(
         CaptureId id,
@@ -61,8 +66,17 @@ public sealed record Capture
         ContextId sourceContextId,
         string previewText,
         DateTimeOffset capturedAt,
-        IEnumerable<Assignment> assignments) =>
-        new(id, kind, sourceContextId, previewText, capturedAt, assignments.ToImmutableArray());
+        IEnumerable<Assignment> assignments,
+        IEnumerable<KeyValuePair<string, string>>? textRepresentations = null) =>
+        new(
+            id,
+            kind,
+            sourceContextId,
+            previewText,
+            capturedAt,
+            assignments.ToImmutableArray(),
+            (textRepresentations ?? [])
+                .ToImmutableDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase));
 
     public Capture AssignTo(PlaceId placeId, AssignmentActor actor)
     {
@@ -83,6 +97,19 @@ public sealed record Capture
             SourceContextId,
             PreviewText,
             CapturedAt,
-            Assignments.Append(assignment).ToImmutableArray());
+            Assignments.Append(assignment).ToImmutableArray(),
+            TextRepresentations.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase));
     }
+
+    public Capture WithTextRepresentation(string mediaType, string content) =>
+        new(
+            Id,
+            Kind,
+            SourceContextId,
+            PreviewText,
+            CapturedAt,
+            Assignments.ToImmutableArray(),
+            TextRepresentations
+                .ToImmutableDictionary(StringComparer.OrdinalIgnoreCase)
+                .SetItem(mediaType, content));
 }

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using TasksList.App.Sticky;
+using TasksList.App.Clipboard;
 using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
 
@@ -14,20 +15,26 @@ public partial class MainWindow : Window
 {
     private readonly TasksListDatabase _database;
     private readonly ObservableCollection<NoteCardViewModel> _notes = [];
+    private readonly ObservableCollection<ClipboardCardViewModel> _clipboardCards = [];
     private readonly Dictionary<NoteId, StickyWindow> _openStickies = [];
+    private readonly ClipboardMonitor _clipboardMonitor;
 
     public MainWindow(TasksListDatabase database)
     {
         _database = database;
         InitializeComponent();
         NotesList.ItemsSource = _notes;
+        ClipboardList.ItemsSource = _clipboardCards;
+        _clipboardMonitor = new ClipboardMonitor(this, CaptureClipboardAsync);
         Loaded += OnLoaded;
+        Closed += (_, _) => _clipboardMonitor.Dispose();
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
         await ReloadNotesAsync(createWelcomeNote: true);
+        await ReloadClipboardAsync();
     }
 
     private async Task ReloadNotesAsync(bool createWelcomeNote = false)
@@ -90,6 +97,61 @@ public partial class MainWindow : Window
         sticky.Closed += (_, _) => _openStickies.Remove(note.Id);
         _openStickies[note.Id] = sticky;
         sticky.Show();
+    }
+
+    private async Task CaptureClipboardAsync(ClipboardSnapshot snapshot)
+    {
+        await _database.SaveContextAsync(snapshot.Source);
+        var capture = Capture.Create(
+            snapshot.Kind,
+            snapshot.Source.Id,
+            snapshot.PreviewText,
+            DateTimeOffset.Now);
+        foreach (var representation in snapshot.TextRepresentations)
+        {
+            capture = capture.WithTextRepresentation(representation.Key, representation.Value);
+        }
+        await _database.SaveCaptureAsync(capture);
+        await ReloadClipboardAsync();
+        StatusText.Text = $"CAPTURED · {snapshot.Source.DisplayName}";
+    }
+
+    private async Task ReloadClipboardAsync()
+    {
+        var captures = await _database.ListCapturesAsync();
+        _clipboardCards.Clear();
+        foreach (var capture in captures.Take(50))
+        {
+            var source = await _database.GetContextAsync(capture.SourceContextId);
+            _clipboardCards.Add(new ClipboardCardViewModel(capture, source));
+        }
+    }
+
+    private async void ClipToNoteClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: ClipboardCardViewModel card })
+        {
+            return;
+        }
+
+        var note = Note.Create(
+            $"Clip from {card.SourceName}",
+            $"# Captured from {card.SourceName}\n\n{card.Capture.PreviewText}")
+            .AttachTo(card.Capture.SourceContextId, AttachmentVisibility.WhilePresent);
+        await _database.SaveNoteAsync(note);
+        await ReloadNotesAsync();
+        OpenSticky(note);
+    }
+
+    private void CopyClipPlainClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: ClipboardCardViewModel card })
+        {
+            System.Windows.Clipboard.SetText(
+                card.Capture.TextRepresentations.TryGetValue("text/plain", out var plain)
+                    ? plain
+                    : card.Capture.PreviewText);
+        }
     }
 
     private void SearchTextChanged(object sender, TextChangedEventArgs e) => ApplySearch();
@@ -217,4 +279,31 @@ public sealed class NoteCardViewModel
     public Brush MutedInkBrush { get; }
 
     public Brush StatusBrush { get; }
+}
+
+public sealed class ClipboardCardViewModel
+{
+    public ClipboardCardViewModel(Capture capture, ContextRef? source)
+    {
+        Capture = capture;
+        SourceName = source?.DisplayName ?? "Unknown application";
+    }
+
+    public Capture Capture { get; }
+
+    public string Preview => Capture.PreviewText.Replace("\r", string.Empty, StringComparison.Ordinal).Trim();
+
+    public string SourceName { get; }
+
+    public string SourceLabel => $"SOURCE  {SourceName}";
+
+    public string TimeLabel => Capture.CapturedAt.LocalDateTime.ToString("h:mm tt");
+
+    public string FormatLabel => Capture.Kind switch
+    {
+        CaptureKind.RichText => "RICH TEXT",
+        CaptureKind.Html => "HTML + TEXT",
+        CaptureKind.Markdown => "MARKDOWN",
+        _ => "TEXT",
+    };
 }

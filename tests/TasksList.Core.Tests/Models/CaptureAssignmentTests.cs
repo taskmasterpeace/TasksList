@@ -43,4 +43,20 @@ public sealed class CaptureAssignmentTests
         Assert.Single(filed.Assignments);
         Assert.Equal(AssignmentActor.User, filed.Assignments[0].Actor);
     }
+
+    [Fact]
+    public void CapturePreservesPlainHtmlAndRichTextRepresentations()
+    {
+        var capture = Capture.Create(
+                CaptureKind.RichText,
+                ContextId.New(),
+                "Task'sList",
+                DateTimeOffset.UtcNow)
+            .WithTextRepresentation("text/plain", "Task'sList")
+            .WithTextRepresentation("text/html", "<strong>Task'sList</strong>")
+            .WithTextRepresentation("text/rtf", "{\\rtf1\\b Task'sList}");
+
+        Assert.Equal(3, capture.TextRepresentations.Count);
+        Assert.Equal("<strong>Task'sList</strong>", capture.TextRepresentations["text/html"]);
+    }
 }

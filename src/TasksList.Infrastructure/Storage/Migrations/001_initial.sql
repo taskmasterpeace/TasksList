@@ -48,9 +48,15 @@ CREATE TABLE IF NOT EXISTS assignments (
     UNIQUE(capture_id, place_id)
 );
 
+CREATE TABLE IF NOT EXISTS capture_representations (
+    capture_id TEXT NOT NULL REFERENCES captures(id) ON DELETE CASCADE,
+    media_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    PRIMARY KEY(capture_id, media_type)
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS captures_fts USING fts5(
     capture_id UNINDEXED,
     preview_text,
     tokenize = 'unicode61'
 );
-

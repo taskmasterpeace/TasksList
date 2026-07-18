@@ -12,9 +12,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var dataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "TasksList");
+        var dataDirectory = Environment.GetEnvironmentVariable("TASKSLIST_DATA_DIR") ??
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "TasksList");
         var database = new TasksListDatabase(Path.Combine(dataDirectory, "taskslist.db"));
 
         try

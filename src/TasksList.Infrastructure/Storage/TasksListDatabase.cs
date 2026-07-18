@@ -58,6 +58,30 @@ public sealed class TasksListDatabase
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<ContextRef?> GetContextAsync(ContextId contextId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT kind, provider, stable_identity, display_name
+            FROM contexts
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", contextId.Value.ToString("D"));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new ContextRef(
+            contextId,
+            (ContextKind)reader.GetInt32(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3));
+    }
+
     public async Task SavePlaceAsync(Place place, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);
@@ -227,6 +251,21 @@ public sealed class TasksListDatabase
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        await DeleteOwnedRowsAsync(connection, transaction, "capture_representations", "capture_id", capture.Id.Value, cancellationToken);
+        foreach (var representation in capture.TextRepresentations)
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO capture_representations (capture_id, media_type, content)
+                VALUES ($captureId, $mediaType, $content);
+                """;
+            command.Parameters.AddWithValue("$captureId", capture.Id.Value.ToString("D"));
+            command.Parameters.AddWithValue("$mediaType", representation.Key);
+            command.Parameters.AddWithValue("$content", representation.Value);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         await using (var command = connection.CreateCommand())
         {
             command.Transaction = transaction;
@@ -282,7 +321,42 @@ public sealed class TasksListDatabase
         foreach (var row in rows)
         {
             var assignments = await LoadAssignmentsAsync(connection, row.Id, cancellationToken);
-            captures.Add(Capture.Restore(row.Id, row.Kind, row.Source, row.Text, row.CapturedAt, assignments));
+            var representations = await LoadRepresentationsAsync(connection, row.Id, cancellationToken);
+            captures.Add(Capture.Restore(row.Id, row.Kind, row.Source, row.Text, row.CapturedAt, assignments, representations));
+        }
+
+        return captures;
+    }
+
+    public async Task<IReadOnlyList<Capture>> ListCapturesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        var rows = new List<(CaptureId Id, CaptureKind Kind, ContextId Source, string Text, DateTimeOffset CapturedAt)>();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT id, kind, source_context_id, preview_text, captured_at
+                FROM captures
+                ORDER BY captured_at DESC, rowid DESC;
+                """;
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add((
+                    new CaptureId(Guid.Parse(reader.GetString(0))),
+                    (CaptureKind)reader.GetInt32(1),
+                    new ContextId(Guid.Parse(reader.GetString(2))),
+                    reader.GetString(3),
+                    DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture)));
+            }
+        }
+
+        var captures = new List<Capture>(rows.Count);
+        foreach (var row in rows)
+        {
+            var assignments = await LoadAssignmentsAsync(connection, row.Id, cancellationToken);
+            var representations = await LoadRepresentationsAsync(connection, row.Id, cancellationToken);
+            captures.Add(Capture.Restore(row.Id, row.Kind, row.Source, row.Text, row.CapturedAt, assignments, representations));
         }
 
         return captures;
@@ -335,5 +409,27 @@ public sealed class TasksListDatabase
         }
 
         return assignments;
+    }
+
+    private static async Task<IReadOnlyDictionary<string, string>> LoadRepresentationsAsync(
+        SqliteConnection connection,
+        CaptureId captureId,
+        CancellationToken cancellationToken)
+    {
+        var representations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT media_type, content
+            FROM capture_representations
+            WHERE capture_id = $captureId;
+            """;
+        command.Parameters.AddWithValue("$captureId", captureId.Value.ToString("D"));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            representations[reader.GetString(0)] = reader.GetString(1);
+        }
+
+        return representations;
     }
 }
