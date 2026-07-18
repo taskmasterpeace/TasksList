@@ -60,4 +60,24 @@ public sealed record Note
 
     public Note UpdateContent(string title, string markdown) =>
         new(Id, title, markdown, Attachments.ToImmutableArray());
+
+    public Note SetAttachmentVisibility(
+        ContextId contextId,
+        AttachmentVisibility visibility) => new(
+        Id,
+        Title,
+        Markdown,
+        Attachments
+            .Select(attachment => attachment.ContextId == contextId
+                ? attachment with { Visibility = visibility }
+                : attachment)
+            .ToImmutableArray());
+
+    public Note DetachFrom(ContextId contextId) => new(
+        Id,
+        Title,
+        Markdown,
+        Attachments
+            .Where(attachment => attachment.ContextId != contextId)
+            .ToImmutableArray());
 }

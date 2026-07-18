@@ -20,6 +20,8 @@ public sealed class ClipboardMonitor : IDisposable
     private HwndSource? _source;
     private nint _handle;
 
+    public bool IsPaused { get; set; }
+
     public ClipboardMonitor(Window window, Func<ClipboardSnapshot, Task> onCaptured)
     {
         _window = window;
@@ -74,6 +76,10 @@ public sealed class ClipboardMonitor : IDisposable
     {
         if (message == WmClipboardUpdate)
         {
+            if (IsPaused)
+            {
+                return nint.Zero;
+            }
             _window.Dispatcher.BeginInvoke(
                 DispatcherPriority.Background,
                 new Action(async () => await ReadClipboardAsync()));
@@ -139,4 +145,3 @@ public sealed class ClipboardMonitor : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RemoveClipboardFormatListener(nint hwnd);
 }
-

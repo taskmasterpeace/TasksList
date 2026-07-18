@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -36,6 +37,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _contextTimer;
     private ContextRef? _lastExternalContext;
     private bool _contextTickRunning;
+    private bool _exitRequested;
+    private readonly HashSet<NoteId> _activeReminders = [];
 
     public MainWindow(TasksListDatabase database, string? dataDirectory = null)
     {
@@ -58,6 +61,7 @@ public partial class MainWindow : Window
         _contextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
         _contextTimer.Tick += ContextTimerTick;
         Loaded += OnLoaded;
+        Closing += LibraryClosing;
         Closed += (_, _) =>
         {
             _clipboardMonitor.Dispose();
@@ -103,10 +107,15 @@ public partial class MainWindow : Window
 
     private async void NewStickyClick(object sender, RoutedEventArgs e)
     {
-        await CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
+        await NewStickyFromShellAsync();
     }
 
     private async void CaptureRegionClick(object sender, RoutedEventArgs e)
+    {
+        await CaptureRegionAsync();
+    }
+
+    public async Task CaptureRegionAsync()
     {
         var source = ForegroundContextReader.Read();
         var overlay = new CaptureOverlay();
@@ -136,6 +145,67 @@ public partial class MainWindow : Window
         OpenSticky(note);
     }
 
+    public Task NewStickyFromShellAsync() =>
+        CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
+
+    public Task NewFromClipboardFromShellAsync()
+    {
+        var text = System.Windows.Clipboard.ContainsText()
+            ? System.Windows.Clipboard.GetText()
+            : string.Empty;
+        return CreateAndOpenStickyAsync(
+            "Clipboard note",
+            string.IsNullOrWhiteSpace(text) ? "# Clipboard note" : text);
+    }
+
+    public void ShowLibraryFromShell()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    public void ShowClipboardPaletteFromShell()
+    {
+        ShowLibraryFromShell();
+        SearchBox.Focus();
+    }
+
+    public void ToggleAllNotes()
+    {
+        var anyVisible = _openStickies.Values.Any(sticky => sticky.IsVisible);
+        foreach (var sticky in _openStickies.Values)
+        {
+            if (anyVisible) sticky.Hide(); else sticky.Show();
+        }
+    }
+
+    public void DisableGhostModeForAll()
+    {
+        foreach (var sticky in _openStickies.Values)
+        {
+            sticky.DisableGhostMode();
+        }
+    }
+
+    public void SetClipboardMonitoringPaused(bool paused) =>
+        _clipboardMonitor.IsPaused = paused;
+
+    public void PrepareForExit()
+    {
+        _exitRequested = true;
+        Close();
+    }
+
+    private void LibraryClosing(object? sender, CancelEventArgs e)
+    {
+        if (!_exitRequested)
+        {
+            e.Cancel = true;
+            Hide();
+        }
+    }
+
     private void OpenNoteClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: NoteCardViewModel card })
@@ -148,11 +218,7 @@ public partial class MainWindow : Window
     {
         if (_openStickies.TryGetValue(note.Id, out var existing))
         {
-            if (!existing.IsVisible)
-            {
-                existing.Show();
-            }
-            existing.Activate();
+            existing.RestoreVisibility();
             return;
         }
 
@@ -191,6 +257,7 @@ public partial class MainWindow : Window
                 presentation = presentation with
                 {
                     HiddenAt = null,
+                    WakeAt = null,
                     ModifiedAt = DateTimeOffset.Now,
                 };
                 await _database.SaveNotePresentationAsync(presentation);
@@ -302,14 +369,17 @@ public partial class MainWindow : Window
                 _lastExternalContext = observed;
             }
 
+            var notes = await _database.ListNotesAsync();
+            await ProcessLifecycleAsync(notes);
             if (_lastExternalContext is null)
             {
                 return;
             }
 
-            var notes = await _database.ListNotesAsync();
+            var runningExecutables = RunningApplicationReader.GetExecutablePaths();
             foreach (var note in notes.Where(note => note.Attachments.Count > 0))
             {
+                var evaluatedNote = note;
                 var presentation = await _database.GetNotePresentationAsync(note.Id);
                 var lifecycleHidden = presentation.HiddenAt is not null ||
                                       presentation.DeletedAt is not null ||
@@ -323,7 +393,32 @@ public partial class MainWindow : Window
                     continue;
                 }
 
-                var shouldShow = AttachmentVisibilityPolicy.ShouldShow(note, _lastExternalContext.Id);
+                var presentContexts = new HashSet<ContextId>();
+                foreach (var attachment in note.Attachments.Where(item =>
+                             item.Visibility == AttachmentVisibility.WhilePresent))
+                {
+                    var attachedContext = await _database.GetContextAsync(attachment.ContextId);
+                    if (attachedContext is not null &&
+                        RunningApplicationReader.IsRunning(attachedContext, runningExecutables))
+                    {
+                        presentContexts.Add(attachment.ContextId);
+                    }
+                }
+
+                if (note.Attachments.Any(attachment =>
+                        attachment.Visibility == AttachmentVisibility.SleepUntilReturn &&
+                        attachment.ContextId == _lastExternalContext.Id))
+                {
+                    evaluatedNote = note.SetAttachmentVisibility(
+                        _lastExternalContext.Id,
+                        AttachmentVisibility.RemainVisible);
+                    await _database.SaveNoteAsync(evaluatedNote);
+                }
+
+                var shouldShow = AttachmentVisibilityPolicy.ShouldShow(
+                    evaluatedNote,
+                    _lastExternalContext.Id,
+                    presentContexts);
                 if (shouldShow && !_openStickies.ContainsKey(note.Id))
                 {
                     OpenSticky(note);
@@ -344,6 +439,48 @@ public partial class MainWindow : Window
         finally
         {
             _contextTickRunning = false;
+        }
+    }
+
+    private async Task ProcessLifecycleAsync(IReadOnlyList<Note> notes)
+    {
+        var now = DateTimeOffset.Now;
+        foreach (var note in notes)
+        {
+            var presentation = await _database.GetNotePresentationAsync(note.Id);
+            var decision = NoteLifecycleService.Evaluate(presentation, now);
+            if (decision.ShouldWake)
+            {
+                var awake = NoteLifecycleService.Wake(presentation, now);
+                await _database.SaveNotePresentationAsync(awake);
+                if (_openStickies.TryGetValue(note.Id, out var sleepingSticky))
+                {
+                    sleepingSticky.Show();
+                }
+                else
+                {
+                    OpenSticky(note);
+                }
+            }
+
+            if (decision.ReminderDue)
+            {
+                if (_openStickies.TryGetValue(note.Id, out var reminderSticky))
+                {
+                    if (_activeReminders.Add(note.Id))
+                    {
+                        reminderSticky.TriggerReminder(decision);
+                    }
+                }
+                else
+                {
+                    OpenSticky(note);
+                }
+            }
+            else
+            {
+                _activeReminders.Remove(note.Id);
+            }
         }
     }
 

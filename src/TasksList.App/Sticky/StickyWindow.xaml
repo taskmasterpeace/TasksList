@@ -66,9 +66,33 @@
                           InputGestureText="Ctrl+M" Click="RollClick" />
                 <MenuItem x:Name="LockMenuItem" Header="Lock note" IsCheckable="True"
                           InputGestureText="Ctrl+L" Click="LockClick" />
+                <MenuItem x:Name="GhostMenuItem" Header="Ghost / click-through" IsCheckable="True"
+                          Click="GhostClick" />
+                <MenuItem Header="Sleep">
+                    <MenuItem Header="15 minutes" Tag="FifteenMinutes" Click="SleepPresetClick" />
+                    <MenuItem Header="1 hour" Tag="OneHour" Click="SleepPresetClick" />
+                    <MenuItem Header="Tomorrow morning" Tag="TomorrowMorning" Click="SleepPresetClick" />
+                    <MenuItem Header="Next workday" Tag="NextWorkday" Click="SleepPresetClick" />
+                    <MenuItem Header="Custom…" Tag="Custom" Click="SleepPresetClick" />
+                </MenuItem>
+                <MenuItem Header="Remind me">
+                    <MenuItem Header="In 15 minutes" Tag="15" Click="ReminderPresetClick" />
+                    <MenuItem Header="In 1 hour" Tag="60" Click="ReminderPresetClick" />
+                    <MenuItem Header="Tomorrow morning" Tag="Tomorrow" Click="ReminderPresetClick" />
+                    <MenuItem Header="Custom…" Tag="Custom" Click="ReminderPresetClick" />
+                </MenuItem>
                 <Separator />
-                <MenuItem Header="Attach to last application" Click="AttachClick" />
+                <MenuItem Header="Attach to application">
+                    <MenuItem Header="Foreground only" Tag="ForegroundOnly" Click="AttachModeClick" />
+                    <MenuItem Header="While application exists" Tag="WhilePresent" Click="AttachModeClick" />
+                    <MenuItem Header="Stay visible after activation" Tag="RemainVisible" Click="AttachModeClick" />
+                    <MenuItem Header="Sleep until application returns" Tag="SleepUntilReturn" Click="AttachModeClick" />
+                    <Separator />
+                    <MenuItem Header="Reattach to last application" Click="AttachClick" />
+                    <MenuItem Header="Detach" Click="DetachClick" />
+                </MenuItem>
                 <MenuItem Header="Archive note" Click="ArchiveMenuClick" />
+                <MenuItem Header="Move to Trash…" Click="MoveToTrashClick" />
             </ContextMenu>
         </Border.ContextMenu>
 
@@ -155,6 +179,18 @@
                                FontWeight="SemiBold" ToolTip="Ctrl + mouse wheel changes opacity" />
                 </StackPanel>
             </Grid>
+
+            <Border x:Name="ReminderBanner" Grid.Row="0" Grid.RowSpan="3"
+                    VerticalAlignment="Top" HorizontalAlignment="Center" Margin="12,10"
+                    Padding="12,7" CornerRadius="10" Background="#FBE7A7"
+                    BorderBrush="#C77628" BorderThickness="1" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Reminder due" Foreground="#3A2818" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Button Content="Acknowledge" Padding="8,4" Click="AcknowledgeReminderClick"
+                            AutomationProperties.Name="Acknowledge reminder" />
+                </StackPanel>
+            </Border>
         </Grid>
     </Border>
 

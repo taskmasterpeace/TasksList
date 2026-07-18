@@ -1,3 +1,4 @@
+using System.Media;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -76,11 +77,14 @@ public partial class StickyWindow : Window
         CustomizeControl.ResetRequested += () =>
             _controller.ApplyStyle(NoteStyle.FromPreset(PaperPreset.Butter));
 
-        Loaded += (_, _) =>
+        Loaded += async (_, _) =>
         {
             ApplyPresentation(_controller.Presentation, includeBounds: true);
+            await RefreshAttachedContextLabelAsync();
             _isLoading = false;
         };
+        SourceInitialized += (_, _) =>
+            GhostModeService.SetGhost(this, _controller.Presentation.Ghost);
         LocationChanged += WindowBoundsChanged;
         SizeChanged += WindowBoundsChanged;
     }
@@ -100,6 +104,49 @@ public partial class StickyWindow : Window
     public NotePresentation CurrentPresentation => _controller.Presentation;
 
     public WindowBounds CurrentBounds => new(Left, Top, ActualWidth, ActualHeight);
+
+    public void DisableGhostMode()
+    {
+        _controller.DisableGhost();
+        GhostModeService.SetGhost(this, false);
+    }
+
+    public void RestoreVisibility()
+    {
+        _controller.RestoreVisibility(DateTimeOffset.Now);
+        Show();
+        Activate();
+    }
+
+    public void TriggerReminder(NoteLifecycleDecision decision)
+    {
+        if (!decision.ReminderDue)
+        {
+            return;
+        }
+
+        if (decision.RequireTopmost)
+        {
+            Topmost = true;
+        }
+        if (decision.PlaySound)
+        {
+            SystemSounds.Exclamation.Play();
+        }
+        if (decision.Pulse)
+        {
+            PaperShadow.BeginAnimation(
+                System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
+                new DoubleAnimation(0.95, TimeSpan.FromMilliseconds(420))
+                {
+                    AutoReverse = true,
+                    RepeatBehavior = new RepeatBehavior(4),
+                });
+        }
+        ReminderBanner.Visibility = Visibility.Visible;
+        Show();
+        Activate();
+    }
 
     private void ContentChanged(object sender, TextChangedEventArgs e)
     {
@@ -184,6 +231,7 @@ public partial class StickyWindow : Window
             }
 
             Topmost = presentation.Topmost;
+            GhostModeService.SetGhost(this, presentation.Ghost);
             Opacity = IsActive ? presentation.ActiveOpacity : presentation.InactiveOpacity;
             ResizeMode = presentation.Locked || presentation.Rolled
                 ? ResizeMode.NoResize
@@ -240,6 +288,14 @@ public partial class StickyWindow : Window
             LockMenuItem.IsChecked = presentation.Locked;
             TopmostMenuItem.IsChecked = presentation.Topmost;
             RollMenuItem.IsChecked = presentation.Rolled;
+            GhostMenuItem.IsChecked = presentation.Ghost;
+            var stateLabels = new List<string>();
+            if (presentation.Locked) stateLabels.Add("LOCKED");
+            if (presentation.Ghost) stateLabels.Add("GHOST");
+            if (presentation.WakeAt is not null) stateLabels.Add("SLEEPING");
+            ContextText.Text = stateLabels.Count > 0
+                ? string.Join(" · ", stateLabels)
+                : _note.Attachments.Count == 0 ? "UNATTACHED" : "CONTEXT ATTACHED";
             OpacityText.Text = $"{presentation.ActiveOpacity:P0}";
             CustomizeControl.Load(presentation);
         }
@@ -540,6 +596,109 @@ public partial class StickyWindow : Window
 
     private void LockClick(object sender, RoutedEventArgs e) => _controller.ToggleLocked();
 
+    private void GhostClick(object sender, RoutedEventArgs e)
+    {
+        if (!_controller.Presentation.Ghost)
+        {
+            var result = MessageBox.Show(
+                "Ghost mode lets mouse clicks pass through this sticky. Recover it from the Task'sList tray menu or press Ctrl+Alt+Shift+G.\n\nEnable click-through?",
+                "Enable Ghost Mode",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                GhostMenuItem.IsChecked = false;
+                return;
+            }
+        }
+
+        _controller.ToggleGhost();
+    }
+
+    private async void SleepPresetClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tag } ||
+            !Enum.TryParse<SleepPreset>(tag, out var preset))
+        {
+            return;
+        }
+
+        DateTimeOffset? custom = null;
+        if (preset == SleepPreset.Custom)
+        {
+            var dialog = new ScheduleDialog("Sleep this note until…", allowAttention: false)
+            {
+                Owner = this,
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+            custom = dialog.SelectedDateTime;
+        }
+
+        _controller.Sleep(preset, DateTimeOffset.Now, custom);
+        await _database.SaveNotePresentationAsync(_controller.Presentation);
+        Hide();
+    }
+
+    private void ReminderPresetClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tag })
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.Now;
+        DateTimeOffset reminderAt;
+        var attention = ReminderAttention.SoundAndPulse;
+        if (tag == "15")
+        {
+            reminderAt = now.AddMinutes(15);
+        }
+        else if (tag == "60")
+        {
+            reminderAt = now.AddHours(1);
+        }
+        else if (tag == "Tomorrow")
+        {
+            var tomorrow = now.AddDays(1);
+            reminderAt = new DateTimeOffset(
+                tomorrow.Year,
+                tomorrow.Month,
+                tomorrow.Day,
+                8,
+                0,
+                0,
+                tomorrow.Offset);
+        }
+        else
+        {
+            var dialog = new ScheduleDialog("Remind me…", allowAttention: true)
+            {
+                Owner = this,
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+            reminderAt = dialog.SelectedDateTime;
+            attention = dialog.Attention;
+        }
+
+        _controller.ScheduleReminder(reminderAt, attention, now);
+        SaveText.Text = $"REMINDER {reminderAt:g}";
+    }
+
+    private void AcknowledgeReminderClick(object sender, RoutedEventArgs e)
+    {
+        ReminderBanner.Visibility = Visibility.Collapsed;
+        PaperShadow.BeginAnimation(
+            System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
+            null);
+        _controller.AcknowledgeReminder(DateTimeOffset.Now);
+    }
+
     private async void CustomizeClick(object sender, RoutedEventArgs e)
     {
         _namedStyles = await _database.ListNamedStylesAsync();
@@ -588,11 +747,74 @@ public partial class StickyWindow : Window
         }
 
         await _database.SaveContextAsync(context);
-        _note = _note.AttachTo(context.Id, AttachmentVisibility.ForegroundOnly);
+        _note = _note.Attachments.Any(attachment => attachment.ContextId == context.Id)
+            ? _note.SetAttachmentVisibility(context.Id, AttachmentVisibility.ForegroundOnly)
+            : _note.AttachTo(context.Id, AttachmentVisibility.ForegroundOnly);
         await _database.SaveNoteAsync(_note);
-        ContextText.Text = $"ATTACHED · {context.DisplayName}";
+        ContextText.Text = $"ATTACHED · {context.DisplayName} · Foreground";
         NoteSaved?.Invoke(this, EventArgs.Empty);
     }
+
+    private async void AttachModeClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tag } ||
+            !Enum.TryParse<AttachmentVisibility>(tag, out var visibility))
+        {
+            return;
+        }
+
+        var context = _contextProvider();
+        if (context is null)
+        {
+            MessageBox.Show(
+                "Switch to the application you want, return to this sticky, then choose an attachment mode.",
+                "No application context yet",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        await _database.SaveContextAsync(context);
+        _note = _note.Attachments.Any(attachment => attachment.ContextId == context.Id)
+            ? _note.SetAttachmentVisibility(context.Id, visibility)
+            : _note.AttachTo(context.Id, visibility);
+        await _database.SaveNoteAsync(_note);
+        ContextText.Text = $"ATTACHED · {context.DisplayName} · {VisibilityLabel(visibility)}";
+        NoteSaved?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async void DetachClick(object sender, RoutedEventArgs e)
+    {
+        foreach (var attachment in _note.Attachments.ToArray())
+        {
+            _note = _note.DetachFrom(attachment.ContextId);
+        }
+        await _database.SaveNoteAsync(_note);
+        ContextText.Text = "UNATTACHED";
+        NoteSaved?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task RefreshAttachedContextLabelAsync()
+    {
+        if (_note.Attachments.FirstOrDefault() is not { } attachment)
+        {
+            return;
+        }
+
+        var context = await _database.GetContextAsync(attachment.ContextId);
+        ContextText.Text = context is null
+            ? $"ATTACHED · {VisibilityLabel(attachment.Visibility)}"
+            : $"ATTACHED · {context.DisplayName} · {VisibilityLabel(attachment.Visibility)}";
+    }
+
+    private static string VisibilityLabel(AttachmentVisibility visibility) => visibility switch
+    {
+        AttachmentVisibility.ForegroundOnly => "Foreground",
+        AttachmentVisibility.WhilePresent => "While running",
+        AttachmentVisibility.RemainVisible => "Stay visible",
+        AttachmentVisibility.SleepUntilReturn => "Sleep until return",
+        _ => visibility.ToString(),
+    };
 
     private void ModeClick(object sender, RoutedEventArgs e)
     {
@@ -645,6 +867,23 @@ public partial class StickyWindow : Window
     private void EditTitleMenuClick(object sender, RoutedEventArgs e) => BeginTitleEdit();
 
     private void ArchiveMenuClick(object sender, RoutedEventArgs e) => ArchiveAndClose();
+
+    private void MoveToTrashClick(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            "Move this note to Trash? It can be restored for 30 days.",
+            "Move note to Trash",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        _controller.MoveToTrash(DateTimeOffset.Now);
+        ArchiveRequested?.Invoke(_note.Id);
+        Close();
+    }
 
     private void CloseClick(object sender, RoutedEventArgs e) => ArchiveAndClose();
 

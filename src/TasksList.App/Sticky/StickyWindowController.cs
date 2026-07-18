@@ -90,6 +90,47 @@ public sealed class StickyWindowController
 
     public void ToggleGhost() => Set(Presentation with { Ghost = !Presentation.Ghost });
 
+    public void DisableGhost()
+    {
+        if (Presentation.Ghost)
+        {
+            Set(Presentation with { Ghost = false, ModifiedAt = DateTimeOffset.Now });
+        }
+    }
+
+    public void RestoreVisibility(DateTimeOffset now)
+    {
+        if (Presentation.HiddenAt is not null || Presentation.WakeAt is not null)
+        {
+            Set(Presentation with
+            {
+                HiddenAt = null,
+                WakeAt = null,
+                ModifiedAt = now,
+            });
+        }
+    }
+
+    public void Sleep(SleepPreset preset, DateTimeOffset now, DateTimeOffset? customWakeAt = null) =>
+        Set(NoteLifecycleService.ScheduleSleep(Presentation, preset, now, customWakeAt));
+
+    public void ScheduleReminder(
+        DateTimeOffset reminderAt,
+        ReminderAttention attention,
+        DateTimeOffset now) => Set(NoteLifecycleService.ScheduleReminder(
+        Presentation,
+        reminderAt,
+        attention,
+        now));
+
+    public void AcknowledgeReminder(DateTimeOffset now) =>
+        Set(NoteLifecycleService.AcknowledgeReminder(Presentation, now));
+
+    public void MoveToTrash(DateTimeOffset deletedAt) => Set(Presentation.SoftDelete(deletedAt) with
+    {
+        HiddenAt = deletedAt,
+    });
+
     public void Archive(DateTimeOffset archivedAt) => Set(Presentation with
     {
         HiddenAt = archivedAt,

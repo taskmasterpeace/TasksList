@@ -73,4 +73,35 @@ public sealed class StickyWindowControllerTests
         Assert.Equal(0.85, controller.Presentation.ActiveOpacity);
         Assert.Equal(0.20, controller.Presentation.InactiveOpacity);
     }
+
+    [Fact]
+    public void GhostAndLockRemainIndependentRecoveryStates()
+    {
+        var controller = new StickyWindowController(NotePresentation.Default(NoteId.New()));
+
+        controller.ToggleLocked();
+        controller.ToggleGhost();
+        controller.DisableGhost();
+
+        Assert.True(controller.Presentation.Locked);
+        Assert.False(controller.Presentation.Ghost);
+    }
+
+    [Fact]
+    public void RestoringVisibilityCancelsArchiveOrSleepWithoutRestoringTrash()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var controller = new StickyWindowController(NotePresentation.Default(NoteId.New()) with
+        {
+            HiddenAt = now.AddMinutes(-1),
+            WakeAt = now.AddHours(1),
+            DeletedAt = now.AddDays(-1),
+        });
+
+        controller.RestoreVisibility(now);
+
+        Assert.Null(controller.Presentation.HiddenAt);
+        Assert.Null(controller.Presentation.WakeAt);
+        Assert.NotNull(controller.Presentation.DeletedAt);
+    }
 }

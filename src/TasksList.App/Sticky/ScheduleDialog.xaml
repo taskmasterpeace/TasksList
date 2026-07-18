@@ -1,0 +1,31 @@
+<Window x:Class="TasksList.App.Sticky.ScheduleDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose a time" Width="360" Height="300" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False">
+    <Border Background="#202326" BorderBrush="#3A4247" BorderThickness="1"
+            CornerRadius="10" Padding="22">
+        <StackPanel>
+            <TextBlock x:Name="HeadingText" Text="Choose a date and time" FontSize="20"
+                       FontWeight="SemiBold" Foreground="#F6F2EA" />
+            <TextBlock Text="Task'sList uses your local Windows time zone." Foreground="#9DA9A9"
+                       Margin="0,5,0,18" />
+            <DatePicker x:Name="DateBox" />
+            <TextBox x:Name="TimeBox" Margin="0,9,0,0" Text="08:00"
+                     ToolTip="Time in 24-hour HH:mm format" />
+            <StackPanel x:Name="AttentionPanel" Margin="0,14,0,0">
+                <TextBlock Text="Attention" Foreground="#D9D2C7" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                    <CheckBox x:Name="SoundCheck" Content="Play sound" IsChecked="True" Margin="0,0,20,0" />
+                    <CheckBox x:Name="PulseCheck" Content="Pulse note" IsChecked="True" />
+                </StackPanel>
+            </StackPanel>
+            <TextBlock x:Name="ErrorText" Foreground="#F29A8A" Margin="0,10,0,0"
+                       Visibility="Collapsed" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Content="Cancel" IsCancel="True" Padding="14,8" Margin="0,0,8,0" />
+                <Button Content="Schedule" Padding="14,8" Click="ScheduleClick" IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

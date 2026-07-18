@@ -5,6 +5,22 @@ namespace TasksList.Core.Tests.Models;
 public sealed class NoteAndPlaceTests
 {
     [Fact]
+    public void AttachmentModeCanChangeAndAttachmentCanBeRemoved()
+    {
+        var contextId = ContextId.New();
+        var attached = Note.Create("Title", "Body")
+            .AttachTo(contextId, AttachmentVisibility.ForegroundOnly);
+
+        var changed = attached.SetAttachmentVisibility(
+            contextId,
+            AttachmentVisibility.SleepUntilReturn);
+        var detached = changed.DetachFrom(contextId);
+
+        Assert.Equal(AttachmentVisibility.SleepUntilReturn, changed.Attachments.Single().Visibility);
+        Assert.Empty(detached.Attachments);
+    }
+
+    [Fact]
     public void NoteCanAttachToAContextWithoutEmbeddingContextMetadataInMarkdown()
     {
         var note = Note.Create("Docker later", "# Docker cleanup\n\n- [ ] Prune images");

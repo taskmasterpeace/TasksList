@@ -32,4 +32,21 @@ public sealed class AttachmentVisibilityPolicyTests
 
         Assert.True(AttachmentVisibilityPolicy.ShouldShow(note, ContextId.New()));
     }
+
+    [Fact]
+    public void WhilePresentUsesDetectedRunningApplicationContexts()
+    {
+        var attachedContext = ContextId.New();
+        var note = Note.Create("Title", "Body")
+            .AttachTo(attachedContext, AttachmentVisibility.WhilePresent);
+
+        Assert.True(AttachmentVisibilityPolicy.ShouldShow(
+            note,
+            ContextId.New(),
+            new HashSet<ContextId> { attachedContext }));
+        Assert.False(AttachmentVisibilityPolicy.ShouldShow(
+            note,
+            ContextId.New(),
+            new HashSet<ContextId>()));
+    }
 }
