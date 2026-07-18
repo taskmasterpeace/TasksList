@@ -40,6 +40,13 @@ public sealed record Note
     public static Note Create(string title, string markdown) =>
         new(NoteId.New(), title, markdown, ImmutableArray<Attachment>.Empty);
 
+    public static Note Restore(
+        NoteId id,
+        string title,
+        string markdown,
+        IEnumerable<Attachment> attachments) =>
+        new(id, title, markdown, attachments.ToImmutableArray());
+
     public Note AttachTo(ContextId contextId, AttachmentVisibility visibility)
     {
         if (Attachments.Any(attachment => attachment.ContextId == contextId))
@@ -51,4 +58,3 @@ public sealed record Note
         return new Note(Id, Title, Markdown, Attachments.Append(attachment).ToImmutableArray());
     }
 }
-

@@ -55,6 +55,15 @@ public sealed record Capture
             capturedAt,
             ImmutableArray<Assignment>.Empty);
 
+    public static Capture Restore(
+        CaptureId id,
+        CaptureKind kind,
+        ContextId sourceContextId,
+        string previewText,
+        DateTimeOffset capturedAt,
+        IEnumerable<Assignment> assignments) =>
+        new(id, kind, sourceContextId, previewText, capturedAt, assignments.ToImmutableArray());
+
     public Capture AssignTo(PlaceId placeId, AssignmentActor actor)
     {
         if (Assignments.Any(assignment => assignment.PlaceId == placeId))
