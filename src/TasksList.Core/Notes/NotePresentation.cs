@@ -22,6 +22,12 @@ public enum ToolbarVisibility
     Hidden,
 }
 
+public enum NoteEditorMode
+{
+    Edit,
+    Preview,
+}
+
 public enum NoteDensity
 {
     Compact,
@@ -173,6 +179,8 @@ public sealed record NotePresentation
 
     public ToolbarVisibility ToolbarVisibility { get; init; }
 
+    public NoteEditorMode EditorMode { get; init; }
+
     public double ShadowStrength { get; init; }
 
     public CornerStyle CornerStyle { get; init; }
@@ -199,6 +207,8 @@ public sealed record NotePresentation
 
     public ReminderAttention ReminderAttention { get; init; }
 
+    public bool ReminderTopmost { get; init; }
+
     public DateTimeOffset CreatedAt { get; init; }
 
     public DateTimeOffset ModifiedAt { get; init; }
@@ -223,6 +233,7 @@ public sealed record NotePresentation
             LineSpacing = 1.2,
             Density = NoteDensity.Comfortable,
             ToolbarVisibility = ToolbarVisibility.Hover,
+            EditorMode = NoteEditorMode.Edit,
             ShadowStrength = 0.36,
             CornerStyle = CornerStyle.Soft,
             BorderVisible = true,
@@ -232,6 +243,7 @@ public sealed record NotePresentation
             Locked = false,
             Ghost = false,
             ReminderAttention = ReminderAttention.Pulse,
+            ReminderTopmost = true,
             CreatedAt = timestamp,
             ModifiedAt = timestamp,
         };

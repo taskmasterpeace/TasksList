@@ -52,6 +52,7 @@ public partial class MainWindow : Window
     private double _paletteHeight = 610;
     private int _snapTolerance = 12;
     private bool _reduceMotion;
+    private bool _minimizeLibraryToTray = true;
 
     public event Action<double, double>? ClipboardPaletteSizeChanged;
 
@@ -269,6 +270,7 @@ public partial class MainWindow : Window
         _paletteHeight = settings.ClipboardPaletteHeight;
         _snapTolerance = settings.SnapTolerance;
         _reduceMotion = settings.ReduceMotion;
+        _minimizeLibraryToTray = settings.MinimizeLibraryToTray;
     }
 
     public void PrepareForExit()
@@ -282,7 +284,14 @@ public partial class MainWindow : Window
         if (!_exitRequested)
         {
             e.Cancel = true;
-            Hide();
+            if (_minimizeLibraryToTray)
+            {
+                Hide();
+            }
+            else
+            {
+                WindowState = WindowState.Minimized;
+            }
         }
     }
 
@@ -445,15 +454,19 @@ public partial class MainWindow : Window
                 () => _reduceMotion);
             sticky.NoteSaved += async (_, _) => await ReloadNotesAsync();
             sticky.NewStickyRequested += async () =>
-                await CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
+                await CreateAndOpenStickyBesideAsync(
+                    "New sticky",
+                    "# New sticky\n\nStart typing…",
+                    sticky.CurrentBounds);
             sticky.NewFromClipboardRequested += async () =>
             {
                 var text = System.Windows.Clipboard.ContainsText()
                     ? System.Windows.Clipboard.GetText()
                     : string.Empty;
-                await CreateAndOpenStickyAsync(
+                await CreateAndOpenStickyBesideAsync(
                     "Clipboard note",
-                    string.IsNullOrWhiteSpace(text) ? "# Clipboard note" : text);
+                    string.IsNullOrWhiteSpace(text) ? "# Clipboard note" : text,
+                    sticky.CurrentBounds);
             };
             sticky.DuplicateRequested += async source =>
             {
@@ -497,6 +510,34 @@ public partial class MainWindow : Window
     {
         var note = Note.Create(title, markdown);
         await _database.SaveNoteAsync(note);
+        await ReloadNotesAsync();
+        OpenSticky(note);
+    }
+
+    private async Task CreateAndOpenStickyBesideAsync(
+        string title,
+        string markdown,
+        WindowBounds sourceBounds)
+    {
+        var note = Note.Create(title, markdown);
+        await _database.SaveNoteAsync(note);
+        var now = DateTimeOffset.Now;
+        var presentation = NotePresentation.Default(note.Id, now) with
+        {
+            Bounds = new NoteBounds(
+                sourceBounds.Left + 24,
+                sourceBounds.Top + 24,
+                Math.Max(260, sourceBounds.Width),
+                Math.Max(230, sourceBounds.Height),
+                Math.Max(230, sourceBounds.Height),
+                string.Empty),
+            CreatedAt = now,
+            ModifiedAt = now,
+        };
+        var defaultStyle = (await _database.ListNamedStylesAsync())
+            .FirstOrDefault(style => style.IsDefault);
+        if (defaultStyle is not null) presentation = presentation.ApplyStyle(defaultStyle.Style);
+        await _database.SaveNotePresentationAsync(presentation);
         await ReloadNotesAsync();
         OpenSticky(note);
     }

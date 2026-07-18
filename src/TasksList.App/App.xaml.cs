@@ -60,6 +60,11 @@ public partial class App : Application
                     () => ExitApplication(window)),
                 _settings.MonitoringPaused);
 
+            var startupError = StartupRegistrationService.TryApply(
+                _settings.StartWithWindows,
+                Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "TasksList.App.exe"));
+            if (startupError is not null) _tray.ShowError(startupError);
+
             RegisterGlobalHotkeys(window);
         }
         catch (Exception exception)
@@ -133,6 +138,10 @@ public partial class App : Application
         _settings = result;
         _settingsStore?.Save(result);
         owner.ApplyClipboardSettings(result);
+        var startupError = StartupRegistrationService.TryApply(
+            result.StartWithWindows,
+            Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "TasksList.App.exe"));
+        if (startupError is not null) _tray?.ShowError(startupError);
         MessageBox.Show(
             "Settings saved. Global shortcut changes take effect the next time Task'sList starts.",
             "Task'sList Settings",

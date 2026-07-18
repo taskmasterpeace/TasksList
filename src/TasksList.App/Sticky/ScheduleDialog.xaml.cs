@@ -27,6 +27,8 @@ public partial class ScheduleDialog : Window
         _ => ReminderAttention.None,
     };
 
+    public bool RemainTopmost => TopmostCheck.IsChecked == true;
+
     private void ScheduleClick(object sender, RoutedEventArgs e)
     {
         if (DateBox.SelectedDate is not { } date ||

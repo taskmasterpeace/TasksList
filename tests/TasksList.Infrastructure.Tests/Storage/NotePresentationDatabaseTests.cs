@@ -47,6 +47,7 @@ public sealed class NotePresentationDatabaseTests : IAsyncLifetime
             LineSpacing = 1.4,
             Density = NoteDensity.Spacious,
             ToolbarVisibility = ToolbarVisibility.Focused,
+            EditorMode = NoteEditorMode.Preview,
             ShadowStrength = 0.7,
             CornerStyle = CornerStyle.Round,
             BorderVisible = false,
@@ -60,6 +61,7 @@ public sealed class NotePresentationDatabaseTests : IAsyncLifetime
             WakeAt = now.AddHours(1),
             ReminderAt = now.AddHours(2),
             ReminderAttention = ReminderAttention.SoundAndPulse,
+            ReminderTopmost = false,
             CreatedAt = now.AddDays(-1),
             ModifiedAt = now,
         };

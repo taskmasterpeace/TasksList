@@ -19,6 +19,8 @@
                     <CheckBox x:Name="SoundCheck" Content="Play sound" IsChecked="True" Margin="0,0,20,0" />
                     <CheckBox x:Name="PulseCheck" Content="Pulse note" IsChecked="True" />
                 </StackPanel>
+                <CheckBox x:Name="TopmostCheck" Content="Keep note on top until acknowledged"
+                          IsChecked="True" Margin="0,8,0,0" />
             </StackPanel>
             <TextBlock x:Name="ErrorText" Foreground="#F29A8A" Margin="0,10,0,0"
                        Visibility="Collapsed" />

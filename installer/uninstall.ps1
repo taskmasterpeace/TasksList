@@ -13,6 +13,7 @@ Remove-Item -LiteralPath (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\P
 Remove-Item -Path 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.taskslist.browser_context' -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.taskslist.browser_context' -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TasksList' -Recurse -Force -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'TasksList' -Force -ErrorAction SilentlyContinue
 
 $currentProcess = $PID
 $escapedRoot = $InstallRoot.Replace("'", "''")
@@ -20,4 +21,3 @@ $cleanup = "Wait-Process -Id $currentProcess -ErrorAction SilentlyContinue; Remo
 Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-WindowStyle', 'Hidden', '-Command', $cleanup -WindowStyle Hidden
 
 Write-Host "Task'sList was removed. User notes and clipboard data remain in LocalAppData\TasksList."
-

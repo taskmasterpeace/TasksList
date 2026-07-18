@@ -56,7 +56,8 @@ public static class NoteLifecycleService
         NotePresentation presentation,
         DateTimeOffset reminderAt,
         ReminderAttention attention,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool remainTopmost = true)
     {
         if (reminderAt <= now)
         {
@@ -69,6 +70,7 @@ public static class NoteLifecycleService
         {
             ReminderAt = reminderAt,
             ReminderAttention = attention,
+            ReminderTopmost = remainTopmost,
             ModifiedAt = now,
         };
     }
@@ -96,7 +98,7 @@ public static class NoteLifecycleService
             reminderDue,
             sound,
             pulse,
-            reminderDue,
+            reminderDue && presentation.ReminderTopmost,
             presentation.DeletedAt is not null && presentation.DeletedAt <= now.AddDays(-30));
     }
 

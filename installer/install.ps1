@@ -53,7 +53,7 @@ foreach ($registryPath in @(
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TasksList'
 New-Item -Path $uninstallKey -Force | Out-Null
 Set-ItemProperty -Path $uninstallKey -Name DisplayName -Value "Task'sList"
-Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '1.0.0'
+Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '1.1.0'
 Set-ItemProperty -Path $uninstallKey -Name Publisher -Value "Task'sList"
 Set-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $InstallRoot
 Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'uninstall.ps1')`" -InstallRoot `"$InstallRoot`""
@@ -66,4 +66,3 @@ if (-not $NoLaunch) {
 
 Write-Host "Task'sList installed at $InstallRoot"
 Write-Host "Browser companion files: $(Join-Path $InstallRoot 'browser-extension')"
-

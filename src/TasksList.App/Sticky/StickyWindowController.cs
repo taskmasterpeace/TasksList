@@ -70,6 +70,9 @@ public sealed class StickyWindowController
     public void SetToolbarVisibility(ToolbarVisibility visibility) =>
         Set(Presentation with { ToolbarVisibility = visibility });
 
+    public void SetEditorMode(NoteEditorMode mode) =>
+        Set(Presentation with { EditorMode = mode });
+
     public void SetDecoration(
         double shadowStrength,
         CornerStyle cornerStyle,
@@ -117,11 +120,13 @@ public sealed class StickyWindowController
     public void ScheduleReminder(
         DateTimeOffset reminderAt,
         ReminderAttention attention,
-        DateTimeOffset now) => Set(NoteLifecycleService.ScheduleReminder(
+        DateTimeOffset now,
+        bool remainTopmost = true) => Set(NoteLifecycleService.ScheduleReminder(
         Presentation,
         reminderAt,
         attention,
-        now));
+        now,
+        remainTopmost));
 
     public void AcknowledgeReminder(DateTimeOffset now) =>
         Set(NoteLifecycleService.AcknowledgeReminder(Presentation, now));

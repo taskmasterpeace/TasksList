@@ -301,6 +301,7 @@ public partial class StickyWindow : Window
 
             ApplyDensity(presentation.Density);
             ApplyRolledState(presentation.Rolled);
+            ApplyEditorMode(presentation.EditorMode);
             ApplyToolbarState(presentation.ToolbarVisibility);
             PinButton.Foreground = presentation.Topmost ? new SolidColorBrush(accent) : mutedBrush;
             LockMenuItem.IsChecked = presentation.Locked;
@@ -693,6 +694,7 @@ public partial class StickyWindow : Window
         var now = DateTimeOffset.Now;
         DateTimeOffset reminderAt;
         var attention = ReminderAttention.SoundAndPulse;
+        var remainTopmost = true;
         if (tag == "15")
         {
             reminderAt = now.AddMinutes(15);
@@ -725,9 +727,10 @@ public partial class StickyWindow : Window
             }
             reminderAt = dialog.SelectedDateTime;
             attention = dialog.Attention;
+            remainTopmost = dialog.RemainTopmost;
         }
 
-        _controller.ScheduleReminder(reminderAt, attention, now);
+        _controller.ScheduleReminder(reminderAt, attention, now, remainTopmost);
         SaveText.Text = $"REMINDER {reminderAt:g}";
     }
 
@@ -903,20 +906,30 @@ public partial class StickyWindow : Window
 
     private void ModeClick(object sender, RoutedEventArgs e)
     {
-        _isPreviewing = !_isPreviewing;
-        if (_isPreviewing)
+        _controller.SetEditorMode(
+            _controller.Presentation.EditorMode == NoteEditorMode.Edit
+                ? NoteEditorMode.Preview
+                : NoteEditorMode.Edit);
+    }
+
+    private void ApplyEditorMode(NoteEditorMode mode)
+    {
+        var shouldPreview = mode == NoteEditorMode.Preview;
+        if (shouldPreview && !_isPreviewing)
         {
+            _isPreviewing = true;
             PreviewViewer.Document = BuildPreviewDocument();
             MarkdownBox.Visibility = Visibility.Collapsed;
             PreviewViewer.Visibility = Visibility.Visible;
             ModeButton.Content = "EDIT";
         }
-        else
+        else if (!shouldPreview && _isPreviewing)
         {
+            _isPreviewing = false;
             PreviewViewer.Visibility = Visibility.Collapsed;
             MarkdownBox.Visibility = Visibility.Visible;
             ModeButton.Content = "PREVIEW";
-            MarkdownBox.Focus();
+            if (IsLoaded) MarkdownBox.Focus();
         }
     }
 

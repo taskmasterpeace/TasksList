@@ -65,7 +65,8 @@
                                FontWeight="Bold" />
                 </Grid>
                 <Slider x:Name="OpacitySlider" Minimum="20" Maximum="100" TickFrequency="5"
-                        IsSnapToTickEnabled="True" ValueChanged="OpacitySliderChanged" />
+                        IsSnapToTickEnabled="True" ValueChanged="OpacitySliderChanged"
+                        AutomationProperties.Name="Active opacity" />
                 <Grid Margin="0,8,0,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -77,19 +78,20 @@
                 </Grid>
                 <Slider x:Name="InactiveOpacitySlider" Minimum="20" Maximum="100" TickFrequency="5"
                         IsSnapToTickEnabled="True" ValueChanged="InactiveOpacitySliderChanged"
-                        ToolTip="Opacity while this sticky is not focused" />
+                        ToolTip="Opacity while this sticky is not focused"
+                        AutomationProperties.Name="Inactive opacity" />
 
                 <TextBlock Text="P A P E R" Foreground="#7B6546" FontSize="10" FontWeight="Bold"
                            Margin="0,16,0,8" />
                 <UniformGrid Columns="8">
-                    <Button Style="{StaticResource SwatchButton}" Background="#F4CE62" Tag="Butter" Click="PresetClick" ToolTip="Butter" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#EFA66F" Tag="Peach" Click="PresetClick" ToolTip="Peach" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#9FD4B5" Tag="Mint" Click="PresetClick" ToolTip="Mint" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#A8C5E8" Tag="Sky" Click="PresetClick" ToolTip="Sky" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#C7B4E5" Tag="Lavender" Click="PresetClick" ToolTip="Lavender" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#E7AFC0" Tag="Rose" Click="PresetClick" ToolTip="Rose" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#24262D" Tag="Graphite" Click="PresetClick" ToolTip="Graphite" />
-                    <Button Style="{StaticResource SwatchButton}" Background="#D9E4E7" Tag="Glass" Click="PresetClick" ToolTip="Glass" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#F4CE62" Tag="Butter" Click="PresetClick" ToolTip="Butter" AutomationProperties.Name="Butter paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#EFA66F" Tag="Peach" Click="PresetClick" ToolTip="Peach" AutomationProperties.Name="Peach paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#9FD4B5" Tag="Mint" Click="PresetClick" ToolTip="Mint" AutomationProperties.Name="Mint paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#A8C5E8" Tag="Sky" Click="PresetClick" ToolTip="Sky" AutomationProperties.Name="Sky paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#C7B4E5" Tag="Lavender" Click="PresetClick" ToolTip="Lavender" AutomationProperties.Name="Lavender paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#E7AFC0" Tag="Rose" Click="PresetClick" ToolTip="Rose" AutomationProperties.Name="Rose paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#24262D" Tag="Graphite" Click="PresetClick" ToolTip="Graphite" AutomationProperties.Name="Graphite paper" />
+                    <Button Style="{StaticResource SwatchButton}" Background="#D9E4E7" Tag="Glass" Click="PresetClick" ToolTip="Glass" AutomationProperties.Name="Glass paper" />
                 </UniformGrid>
 
                 <TextBlock Text="CUSTOM COLORS" Foreground="#7B6546" FontSize="9" FontWeight="Bold"

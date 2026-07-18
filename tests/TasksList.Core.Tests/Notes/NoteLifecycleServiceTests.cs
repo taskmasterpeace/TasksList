@@ -58,6 +58,22 @@ public sealed class NoteLifecycleServiceTests
     }
 
     [Fact]
+    public void ReminderCanLeaveTheExistingTopmostStateAlone()
+    {
+        var state = NoteLifecycleService.ScheduleReminder(
+            NotePresentation.Default(NoteId.New()),
+            Friday.AddMinutes(5),
+            ReminderAttention.Pulse,
+            Friday,
+            remainTopmost: false);
+
+        var decision = NoteLifecycleService.Evaluate(state, Friday.AddMinutes(6));
+
+        Assert.True(decision.ReminderDue);
+        Assert.False(decision.RequireTopmost);
+    }
+
+    [Fact]
     public void WakeAndAcknowledgeClearOnlyTheirOwnLifecycleState()
     {
         var state = NotePresentation.Default(NoteId.New()) with
