@@ -57,4 +57,7 @@ public sealed record Note
         var attachment = new Attachment(AttachmentId.New(), contextId, visibility);
         return new Note(Id, Title, Markdown, Attachments.Append(attachment).ToImmutableArray());
     }
+
+    public Note UpdateContent(string title, string markdown) =>
+        new(Id, title, markdown, Attachments.ToImmutableArray());
 }

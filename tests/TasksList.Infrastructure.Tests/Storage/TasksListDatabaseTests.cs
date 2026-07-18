@@ -74,5 +74,17 @@ public sealed class TasksListDatabaseTests : IAsyncLifetime
         Assert.Equal(source.Id, loaded.SourceContextId);
         Assert.Equal(2, loaded.Assignments.Count);
     }
-}
 
+    [Fact]
+    public async Task ListNotesReturnsAllSavedNotesInTitleOrder()
+    {
+        var database = new TasksListDatabase(Path.Combine(_directory, "taskslist.db"));
+        await database.InitializeAsync();
+        await database.SaveNoteAsync(Note.Create("Zebra", "last"));
+        await database.SaveNoteAsync(Note.Create("Alpha", "first"));
+
+        var notes = await database.ListNotesAsync();
+
+        Assert.Equal(new[] { "Alpha", "Zebra" }, notes.Select(note => note.Title));
+    }
+}

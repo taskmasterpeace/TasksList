@@ -160,6 +160,32 @@ public sealed class TasksListDatabase
         return Note.Restore(noteId, title, markdown, attachments);
     }
 
+    public async Task<IReadOnlyList<Note>> ListNotesAsync(CancellationToken cancellationToken = default)
+    {
+        var ids = new List<NoteId>();
+        await using (var connection = await OpenAsync(cancellationToken))
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT id FROM notes ORDER BY title COLLATE NOCASE, id;";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                ids.Add(new NoteId(Guid.Parse(reader.GetString(0))));
+            }
+        }
+
+        var notes = new List<Note>(ids.Count);
+        foreach (var id in ids)
+        {
+            if (await GetNoteAsync(id, cancellationToken) is { } note)
+            {
+                notes.Add(note);
+            }
+        }
+
+        return notes;
+    }
+
     public async Task SaveCaptureAsync(Capture capture, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);

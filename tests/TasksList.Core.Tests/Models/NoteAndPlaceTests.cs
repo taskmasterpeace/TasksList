@@ -32,4 +32,19 @@ public sealed class NoteAndPlaceTests
         Assert.Equal(session.Id, tab.SessionPlaceId);
         Assert.Equal(2, tab.TabIndex);
     }
+
+    [Fact]
+    public void UpdatingNoteContentPreservesIdentityAndAttachments()
+    {
+        var contextId = ContextId.New();
+        var note = Note.Create("Draft", "# First")
+            .AttachTo(contextId, AttachmentVisibility.WhilePresent);
+
+        var updated = note.UpdateContent("Docker checklist", "# Docker\n\n- [ ] Build");
+
+        Assert.Equal(note.Id, updated.Id);
+        Assert.Equal("Docker checklist", updated.Title);
+        Assert.Equal("# Docker\n\n- [ ] Build", updated.Markdown);
+        Assert.Single(updated.Attachments);
+    }
 }
