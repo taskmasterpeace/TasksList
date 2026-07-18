@@ -1,6 +1,36 @@
-# Task'sList
+<p align="center">
+  <img src="assets/brand/generated/wordmark-horizontal.png" width="800" alt="Task'sList — Your work, right where it belongs." />
+</p>
 
-Task'sList is a local-first Windows sticky-note and clipboard workspace. Its core is a fast desktop sticky that can stay on top, follow an application or browser context, and remember its exact presentation. Clipboard history, capture, Places, browser tabs, and plugins support that note-first workflow.
+<p align="center">
+  <strong>Sticky notes that remember the work they belong to.</strong><br />
+  Windows-native · Local-first · Infinite clipboard · App and browser context · Markdown · Plugins
+</p>
+
+Task'sList is a local-first Windows sticky-note and clipboard workspace. A note can stay on top, follow an application or browser tab, remember its presentation, and reappear precisely where it is useful. Clipboard history, capture, Places, browser tabs, and plugins support the note-first workflow without turning the application into another knowledge vault.
+
+<p align="center">
+  <img src="docs/assets/taskslist-library.png" width="920" alt="Task'sList library showing working notes and Places" />
+</p>
+
+## Why Task'sList
+
+Most note applications remember text. Task'sList remembers **why the text exists**: the application, window, browser tab, clipboard source, place, visual state, and reminder associated with it.
+
+| Surface | What makes it useful |
+|---|---|
+| **Desktop stickies** | Durable position, size, opacity, style, topmost state, snapping, rolling, locking, and edit/preview mode. |
+| **Context attachment** | Notes can follow an application, a specific window, the browser, or an individual live tab. |
+| **Clipboard memory** | Search an unlimited local history with provenance, favorites, filters, joined paste, and one-click note conversion. |
+| **Portable interfaces** | Markdown remains readable everywhere while progress, counter, and timer directives become safe controls in Preview. |
+| **Plugin ecosystem** | Permissioned out-of-process plugins add browser context, developer workflows, capture automation, and future integrations. |
+| **Local trust boundary** | No account, telemetry service, or cloud dependency; page reading and AI access require explicit plugin capabilities. |
+
+<p align="center">
+  <img src="docs/assets/taskslist-sticky.png" width="390" alt="Task'sList sticky note with interactive Markdown controls" />
+  &nbsp;&nbsp;
+  <img src="docs/assets/taskslist-clipboard.png" width="590" alt="Task'sList searchable clipboard palette with source provenance" />
+</p>
 
 ## What is included
 
@@ -14,6 +44,8 @@ Task'sList is a local-first Windows sticky-note and clipboard workspace. Its cor
 - A permissioned plugin SDK and three bundled examples: Browser Context, Developer Workspace, and Capture Workflows.
 
 Everything is stored locally in `%LOCALAPPDATA%\TasksList`. There is no account requirement, telemetry service, or cloud dependency.
+
+The visual identity masters, export process, color system, and usage rules are documented in [the Task'sList brand guide](docs/BRAND.md).
 
 ## Essential shortcuts
 
