@@ -21,14 +21,16 @@ Get-Process -Name 'TasksList.App' -ErrorAction SilentlyContinue | Stop-Process -
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 Copy-Item -Path (Join-Path $SourceRoot '*') -Destination $InstallRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $InstallRoot 'uninstall.ps1') -Force
+$executablePath = Join-Path $InstallRoot 'TasksList.App.exe'
 
 $shell = New-Object -ComObject WScript.Shell
 $startMenuDirectory = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Task''sList'
 New-Item -ItemType Directory -Force -Path $startMenuDirectory | Out-Null
 $shortcut = $shell.CreateShortcut((Join-Path $startMenuDirectory 'Task''sList.lnk'))
-$shortcut.TargetPath = Join-Path $InstallRoot 'TasksList.App.exe'
+$shortcut.TargetPath = $executablePath
 $shortcut.WorkingDirectory = $InstallRoot
 $shortcut.Description = "Contextual sticky notes and unlimited clipboard history"
+$shortcut.IconLocation = "$executablePath,0"
 $shortcut.Save()
 
 $browserHostExe = Join-Path $InstallRoot 'plugins\taskslist.browser-context\TasksList.Plugin.BrowserContext.exe'
@@ -53,15 +55,22 @@ foreach ($registryPath in @(
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TasksList'
 New-Item -Path $uninstallKey -Force | Out-Null
 Set-ItemProperty -Path $uninstallKey -Name DisplayName -Value "Task'sList"
-Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '1.1.0'
+Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '1.2.0'
 Set-ItemProperty -Path $uninstallKey -Name Publisher -Value "Task'sList"
 Set-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $InstallRoot
-Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'uninstall.ps1')`" -InstallRoot `"$InstallRoot`""
+$uninstallCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'uninstall.ps1')`" -InstallRoot `"$InstallRoot`""
+Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value $uninstallCommand
+Set-ItemProperty -Path $uninstallKey -Name QuietUninstallString -Value "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'uninstall.ps1')`" -InstallRoot `"$InstallRoot`""
+Set-ItemProperty -Path $uninstallKey -Name DisplayIcon -Value "$executablePath,0"
+Set-ItemProperty -Path $uninstallKey -Name Comments -Value "Contextual sticky notes, unlimited clipboard history, capture workflows, and local plugins."
+Set-ItemProperty -Path $uninstallKey -Name URLInfoAbout -Value 'https://github.com/taskmasterpeace/TasksList'
+$estimatedSizeKb = [int][Math]::Ceiling(((Get-ChildItem -LiteralPath $InstallRoot -File -Recurse | Measure-Object -Property Length -Sum).Sum) / 1KB)
+Set-ItemProperty -Path $uninstallKey -Name EstimatedSize -Value $estimatedSizeKb -Type DWord
 Set-ItemProperty -Path $uninstallKey -Name NoModify -Value 1 -Type DWord
 Set-ItemProperty -Path $uninstallKey -Name NoRepair -Value 1 -Type DWord
 
 if (-not $NoLaunch) {
-    Start-Process -FilePath (Join-Path $InstallRoot 'TasksList.App.exe')
+    Start-Process -FilePath $executablePath -WorkingDirectory $InstallRoot
 }
 
 Write-Host "Task'sList installed at $InstallRoot"

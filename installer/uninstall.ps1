@@ -9,6 +9,15 @@ if (-not $InstallRoot.StartsWith([System.IO.Path]::GetFullPath($env:LOCALAPPDATA
 }
 
 Get-Process -Name 'TasksList.App' -ErrorAction SilentlyContinue | Stop-Process -Force
+$executablePath = Join-Path $InstallRoot 'TasksList.App.exe'
+if (Test-Path -LiteralPath $executablePath) {
+    try {
+        Start-Process -FilePath $executablePath -ArgumentList '--unregister-notifications' -Wait -WindowStyle Hidden
+    }
+    catch {
+        Write-Warning "Task'sList notification registration could not be removed: $($_.Exception.Message)"
+    }
+}
 Remove-Item -LiteralPath (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Task''sList') -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.taskslist.browser_context' -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.taskslist.browser_context' -Recurse -Force -ErrorAction SilentlyContinue

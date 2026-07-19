@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.Win32;
 using TasksList.Core.Notes;
 using TasksList.Infrastructure.Storage;
 using TasksList.PluginSdk;
@@ -15,6 +16,59 @@ var executable = Path.Combine(installRoot, "TasksList.App.exe");
 RequireFile(executable, "installed executable", failures);
 RequireFile(Path.Combine(installRoot, "themes", "default", "theme.json"), "default theme", failures);
 RequireFile(Path.Combine(installRoot, "browser-extension", "manifest.json"), "browser companion", failures);
+var shortcutPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+    "Microsoft", "Windows", "Start Menu", "Programs", "Task'sList", "Task'sList.lnk");
+RequireFile(shortcutPath, "Start menu shortcut", failures);
+
+string? uninstallDisplayVersion = null;
+var browserNativeHostCount = 0;
+if (OperatingSystem.IsWindows())
+{
+    using var uninstallKey = Registry.CurrentUser.OpenSubKey(
+        @"Software\Microsoft\Windows\CurrentVersion\Uninstall\TasksList");
+    if (uninstallKey is null)
+    {
+        failures.Add("Task'sList Add/Remove Programs registration is missing.");
+    }
+    else
+    {
+        uninstallDisplayVersion = uninstallKey.GetValue("DisplayVersion") as string;
+        if (uninstallDisplayVersion != "1.2.0")
+        {
+            failures.Add($"Expected installed version 1.2.0; found {uninstallDisplayVersion ?? "missing"}.");
+        }
+        if (uninstallKey.GetValue("DisplayIcon") is not string displayIcon ||
+            !displayIcon.Contains(executable, StringComparison.OrdinalIgnoreCase))
+        {
+            failures.Add("Add/Remove Programs does not use the installed Task'sList icon.");
+        }
+        foreach (var requiredValue in new[] { "UninstallString", "QuietUninstallString", "EstimatedSize", "URLInfoAbout" })
+        {
+            if (uninstallKey.GetValue(requiredValue) is null)
+            {
+                failures.Add($"Add/Remove Programs value {requiredValue} is missing.");
+            }
+        }
+    }
+
+    foreach (var nativeHostKey in new[]
+             {
+                 @"Software\Google\Chrome\NativeMessagingHosts\com.taskslist.browser_context",
+                 @"Software\Microsoft\Edge\NativeMessagingHosts\com.taskslist.browser_context",
+             })
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(nativeHostKey);
+        if (key?.GetValue(null) is string manifestPath && File.Exists(manifestPath))
+        {
+            browserNativeHostCount++;
+        }
+        else
+        {
+            failures.Add($"Native browser host registration is missing or invalid: {nativeHostKey}.");
+        }
+    }
+}
 
 var pluginRoot = Path.Combine(installRoot, "plugins");
 var plugins = new List<PluginManifest>();
@@ -152,6 +206,9 @@ var report = new InstalledProbeReport(
     noteCount,
     captureCount,
     favoriteCaptureCount,
+    File.Exists(shortcutPath),
+    uninstallDisplayVersion,
+    browserNativeHostCount,
     expectedFavoriteCapture,
     expectedNote,
     failures);
@@ -223,6 +280,9 @@ internal sealed record InstalledProbeReport(
     int NoteCount,
     int CaptureCount,
     int FavoriteCaptureCount,
+    bool StartMenuShortcutPresent,
+    string? UninstallDisplayVersion,
+    int BrowserNativeHostCount,
     string? ExpectedFavoriteCapture,
     InstalledNoteResult? ExpectedNote,
     IReadOnlyList<string> Failures);
