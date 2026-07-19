@@ -25,7 +25,6 @@
             <Setter Property="Foreground" Value="#5A4933" />
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -174,11 +173,11 @@
                     </Border>
                     <Button Content="ATTACH" Foreground="#5C4930" Background="Transparent"
                             BorderThickness="0" Padding="7,3" Margin="5,0,0,0" FontSize="9"
-                            FontWeight="Bold" Cursor="Hand" Click="AttachClick"
+                            FontWeight="Bold" Click="AttachClick"
                             ToolTip="Attach to the last application you used" />
                     <Button x:Name="ModeButton" Content="PREVIEW" Foreground="#5C4930"
                             Background="Transparent" BorderThickness="0" Padding="7,3"
-                            Margin="4,0,0,0" FontSize="9" FontWeight="Bold" Cursor="Hand"
+                            Margin="4,0,0,0" FontSize="9" FontWeight="Bold"
                             Click="ModeClick" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

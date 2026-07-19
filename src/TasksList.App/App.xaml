@@ -26,7 +26,6 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="10,7" />
             <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">

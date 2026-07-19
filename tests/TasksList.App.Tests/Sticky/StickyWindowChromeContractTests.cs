@@ -30,7 +30,7 @@ public sealed class StickyWindowChromeContractTests
     }
 
     [Fact]
-    public void HiddenToolbarDoesNotInterceptHeaderAndButtonsUseHandCursor()
+    public void HiddenToolbarDoesNotInterceptHeaderAndButtonsUseStandardCursor()
     {
         var stickyWindow = XDocument.Load(Path.Combine(
             FindRepositoryRoot(),
@@ -50,10 +50,9 @@ public sealed class StickyWindowChromeContractTests
             element.Name.LocalName == "Style" &&
             element.Attributes().Any(attribute =>
                 attribute.Name.LocalName == "Key" && attribute.Value == "StickyIconButton")));
-        Assert.Contains(buttonStyle.Elements(), element =>
+        Assert.DoesNotContain(buttonStyle.Elements(), element =>
             element.Name.LocalName == "Setter" &&
-            element.Attribute("Property")?.Value == "Cursor" &&
-            element.Attribute("Value")?.Value == "Hand");
+            element.Attribute("Property")?.Value == "Cursor");
     }
 
     private static string FindRepositoryRoot()
