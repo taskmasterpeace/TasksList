@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private bool _contextTickRunning;
     private bool _exitRequested;
     private readonly HashSet<NoteId> _activeReminders = [];
+    private PendingScreenCapture? _lastScreenCapture;
     private bool _promoteDuplicateClips = true;
     private double _paletteWidth = 940;
     private double _paletteHeight = 610;
@@ -183,11 +184,12 @@ public partial class MainWindow : Window
             }
         }
 
-        await CaptureCompletionOperation.SaveAndCopyAsync(
+        var capture = await CaptureCompletionOperation.SaveAndCopyAsync(
             () => SaveScreenCaptureAsync(source, result),
             capture => _clipboardPasteService.Copy(capture, PasteRepresentation.Original));
+        _lastScreenCapture = new PendingScreenCapture(capture, source);
         await ReloadClipboardAsync();
-        StatusText.Text = "CAPTURED · COPIED TO CLIPBOARD";
+        ShowCaptureNotice();
     }
 
     private async Task<CaptureModel> SaveScreenCaptureAsync(
@@ -205,6 +207,26 @@ public partial class MainWindow : Window
         await _database.SaveCaptureAsync(capture);
         return capture;
     }
+
+    private void ShowCaptureNotice()
+    {
+        CaptureNotice.Visibility = Visibility.Visible;
+        StatusText.Text = "SCREENSHOT COPIED";
+    }
+
+    private async void CreateCapturedNoteClick(object sender, RoutedEventArgs e)
+    {
+        if (_lastScreenCapture is not { } pending) return;
+
+        var note = CaptureNoteFactory.Create(pending.Capture, pending.Source);
+        await _database.SaveNoteAsync(note);
+        await ReloadNotesAsync();
+        CaptureNotice.Visibility = Visibility.Collapsed;
+        OpenSticky(note);
+    }
+
+    private void DismissCaptureNoticeClick(object sender, RoutedEventArgs e) =>
+        CaptureNotice.Visibility = Visibility.Collapsed;
 
     public Task NewStickyFromShellAsync() =>
         CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
@@ -939,10 +961,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var note = Note.Create(
-            $"Clip from {card.SourceName}",
-            $"# Captured from {card.SourceName}\n\n{card.Capture.PreviewText}")
-            .AttachTo(card.Capture.SourceContextId, AttachmentVisibility.WhilePresent);
+        var source = await _database.GetContextAsync(card.Capture.SourceContextId) ??
+                     new ContextRef(
+                         card.Capture.SourceContextId,
+                         ContextKind.Application,
+                         "taskslist",
+                         $"missing:{card.Capture.SourceContextId}",
+                         card.SourceName);
+        var note = CaptureNoteFactory.Create(card.Capture, source);
         await _database.SaveNoteAsync(note);
         await ReloadNotesAsync();
         OpenSticky(note);
@@ -995,6 +1021,8 @@ public partial class MainWindow : Window
     private static bool IsMarkdownPath(string path) =>
         string.Equals(Path.GetExtension(path), ".md", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(Path.GetExtension(path), ".markdown", StringComparison.OrdinalIgnoreCase);
+
+    private sealed record PendingScreenCapture(CaptureModel Capture, ContextRef Source);
 
     private void ApplySearch()
     {

@@ -458,6 +458,20 @@
                     </TabItem>
                 </TabControl>
             </Grid>
+
+            <Border x:Name="CaptureNotice" Grid.RowSpan="2" Panel.ZIndex="20"
+                    Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="24" Padding="14,10" CornerRadius="8"
+                    Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" AutomationProperties.LiveSetting="Polite">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Screenshot copied to clipboard" VerticalAlignment="Center" />
+                    <Button Style="{StaticResource GhostButton}" Content="Create note"
+                            Margin="12,0,0,0" Click="CreateCapturedNoteClick" />
+                    <Button Style="{StaticResource GhostButton}" Content="Dismiss"
+                            Margin="4,0,0,0" Click="DismissCaptureNoticeClick" />
+                </StackPanel>
+            </Border>
         </Grid>
     </Border>
 </Window>
