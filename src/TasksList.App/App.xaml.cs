@@ -149,11 +149,9 @@ public partial class App : Application
             result.StartWithWindows,
             Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "TasksList.App.exe"));
         if (startupError is not null) _tray?.ShowError(startupError);
-        MessageBox.Show(
-            "Settings saved. Global shortcut changes take effect the next time Task'sList starts.",
-            "Task'sList Settings",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        owner.ShowNotification(
+            "Settings saved. Shortcut changes take effect after restart.",
+            AppNotificationKind.Success);
     }
 
     private void ExitApplication(MainWindow window)

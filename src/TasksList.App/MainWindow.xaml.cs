@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private readonly HashSet<NoteId> _activeReminders = [];
     private PendingScreenCapture? _lastScreenCapture;
     private readonly NoteCardCommandService _noteCardCommands;
+    private readonly AppNotificationService _notifications = new();
     private bool _promoteDuplicateClips = true;
     private double _paletteWidth = 940;
     private double _paletteHeight = 610;
@@ -71,6 +72,7 @@ public partial class MainWindow : Window
             {
                 if (_openStickies.Remove(noteId, out var sticky)) sticky.CloseForExternalLifecycleChange();
             });
+        _notifications.Changed += AppNotificationChanged;
         NotesList.ItemsSource = _notes;
         ClipboardList.ItemsSource = _clipboardCards;
         PlacesList.ItemsSource = _placeCards;
@@ -102,6 +104,7 @@ public partial class MainWindow : Window
         Closing += LibraryClosing;
         Closed += (_, _) =>
         {
+            _notifications.Changed -= AppNotificationChanged;
             SystemEvents.UserPreferenceChanged -= SystemPreferenceChanged;
             _clipboardMonitor.Dispose();
             _clipboardPalette?.DisposePalette();
@@ -229,23 +232,49 @@ public partial class MainWindow : Window
 
     private void ShowCaptureNotice()
     {
-        CaptureNotice.Visibility = Visibility.Visible;
         StatusText.Text = "SCREENSHOT COPIED";
+        _notifications.Show(
+            "Screenshot copied to clipboard",
+            AppNotificationKind.Success,
+            "Create note",
+            CreateCapturedNoteAsync);
     }
 
-    private async void CreateCapturedNoteClick(object sender, RoutedEventArgs e)
+    private async Task CreateCapturedNoteAsync()
     {
         if (_lastScreenCapture is not { } pending) return;
 
         var note = CaptureNoteFactory.Create(pending.Capture, pending.Source);
         await _database.SaveNoteAsync(note);
         await ReloadNotesAsync();
-        CaptureNotice.Visibility = Visibility.Collapsed;
         OpenSticky(note);
     }
 
-    private void DismissCaptureNoticeClick(object sender, RoutedEventArgs e) =>
-        CaptureNotice.Visibility = Visibility.Collapsed;
+    public void ShowNotification(
+        string message,
+        AppNotificationKind kind = AppNotificationKind.Information) =>
+        _notifications.Show(message, kind);
+
+    private void AppNotificationChanged(object? sender, EventArgs e)
+    {
+        var notification = _notifications.Current;
+        AppNotificationHost.Visibility = notification is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        if (notification is null) return;
+
+        AppNotificationText.Text = notification.Message;
+        AppNotificationActionButton.Content = notification.ActionLabel;
+        AppNotificationActionButton.Visibility = notification.Action is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    private async void AppNotificationActionClick(object sender, RoutedEventArgs e) =>
+        await _notifications.InvokeActionAsync();
+
+    private void DismissAppNotificationClick(object sender, RoutedEventArgs e) =>
+        _notifications.Dismiss();
 
     public Task NewStickyFromShellAsync() =>
         CreateAndOpenStickyAsync("New sticky", "# New sticky\n\nStart typing…");
@@ -490,12 +519,18 @@ public partial class MainWindow : Window
         if (_lastExternalContext is null) return;
         await _noteCardCommands.AttachAsync(notes, _lastExternalContext);
         await ReloadNotesAsync();
+        ShowNotification(
+            $"Attached {notes.Count} note{(notes.Count == 1 ? string.Empty : "s")}",
+            AppNotificationKind.Success);
     }
 
     private async Task ArchiveSelectedNotesAsync(IReadOnlyList<Note> notes)
     {
         await _noteCardCommands.ArchiveAsync(notes, DateTimeOffset.Now);
         await ReloadNotesAsync();
+        ShowNotification(
+            $"Archived {notes.Count} note{(notes.Count == 1 ? string.Empty : "s")}",
+            AppNotificationKind.Success);
     }
 
     private async Task TrashSelectedNotesAsync(IReadOnlyList<Note> notes)
@@ -511,6 +546,9 @@ public partial class MainWindow : Window
         await _noteCardCommands.MoveToTrashAsync(notes, DateTimeOffset.Now);
         await ReloadNotesAsync();
         await ReloadTrashAsync();
+        ShowNotification(
+            $"Moved {notes.Count} note{(notes.Count == 1 ? string.Empty : "s")} to Trash",
+            AppNotificationKind.Success);
     }
 
     private async void ApplyStyleToSelectedClick(object sender, RoutedEventArgs e)
@@ -1082,6 +1120,7 @@ public partial class MainWindow : Window
         await ReloadNotesAsync();
         await ReloadClipboardAsync();
         await ReloadTrashAsync();
+        ShowNotification($"Restored {card.Title}", AppNotificationKind.Success);
     }
 
     private async void DeleteTrashPermanentlyClick(object sender, RoutedEventArgs e)
@@ -1135,6 +1174,7 @@ public partial class MainWindow : Window
                 card.Capture.TextRepresentations.TryGetValue("text/plain", out var plain)
                     ? plain
                     : card.Capture.PreviewText);
+            ShowNotification("Clipboard text copied", AppNotificationKind.Success);
         }
     }
 

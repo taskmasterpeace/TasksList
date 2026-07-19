@@ -12,14 +12,17 @@ public sealed class CaptureCompletionPresentationTests
         var notice = Assert.Single(document.Descendants().Where(element =>
             element.Name.LocalName == "Border" &&
             element.Attributes().Any(attribute =>
-                attribute.Name.LocalName == "Name" && attribute.Value == "CaptureNotice")));
+                attribute.Name.LocalName == "Name" && attribute.Value == "AppNotificationHost")));
 
+        Assert.Equal("Polite", notice.Attributes().Single(attribute =>
+            attribute.Name.LocalName == "AutomationProperties.LiveSetting").Value);
         Assert.Contains(notice.Descendants(), element =>
             element.Name.LocalName == "TextBlock" &&
-            element.Attribute("Text")?.Value == "Screenshot copied to clipboard");
+            element.Attributes().Any(attribute =>
+                attribute.Name.LocalName == "Name" && attribute.Value == "AppNotificationText"));
         Assert.Contains(notice.Descendants(), element =>
             element.Name.LocalName == "Button" &&
-            element.Attribute("Click")?.Value == "CreateCapturedNoteClick");
+            element.Attribute("Click")?.Value == "AppNotificationActionClick");
     }
 
     private static string FindRepositoryRoot()
