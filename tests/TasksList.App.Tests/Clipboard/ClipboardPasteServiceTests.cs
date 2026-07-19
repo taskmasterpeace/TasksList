@@ -1,3 +1,4 @@
+using System.Windows;
 using TasksList.App.Clipboard;
 using TasksList.Core.Models;
 using CaptureModel = TasksList.Core.Models.Capture;
@@ -34,6 +35,37 @@ public sealed class ClipboardPasteServiceTests
         service.PasteJoined(captures, "\n---\n", new nint(7));
 
         Assert.Contains("set:PlainText:one\n---\ntwo", platform.Events);
+    }
+
+    [Fact]
+    public void OriginalImagePublishesPersistentBitmapAndPngRepresentations()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"taskslist-image-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "capture.png");
+            File.WriteAllBytes(path, Convert.FromBase64String(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+X3c3WQAAAABJRU5ErkJggg=="));
+            var capture = CaptureModel.Create(
+                    CaptureKind.Image,
+                    ContextId.New(),
+                    "Screen capture - 1 x 1",
+                    DateTimeOffset.UtcNow)
+                .WithTextRepresentation("application/x-taskslist-payload-path", path);
+
+            var data = WindowsClipboardPastePlatform.CreateDataObject(
+                capture,
+                PasteRepresentation.Original);
+
+            Assert.True(data.GetDataPresent(DataFormats.Bitmap));
+            Assert.True(data.GetDataPresent("PNG"));
+            Assert.IsType<byte[]>(data.GetData("PNG"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private sealed class FakePlatform : IClipboardPastePlatform

@@ -80,7 +80,9 @@ public sealed class WindowsClipboardPastePlatform : IClipboardPastePlatform
     public void SetClipboard(CaptureModel capture, PasteRepresentation representation)
     {
         var data = CreateDataObject(capture, representation);
-        System.Windows.Clipboard.SetDataObject(data, copy: true);
+        ClipboardWriteOperation.Run(
+            () => System.Windows.Clipboard.SetDataObject(data, copy: true),
+            Thread.Sleep);
     }
 
     public static DataObject CreateDataObject(
@@ -106,8 +108,16 @@ public sealed class WindowsClipboardPastePlatform : IClipboardPastePlatform
                     "application/x-taskslist-payload-path",
                     out var payloadPath) && File.Exists(payloadPath))
             {
-                var image = new BitmapImage(new Uri(payloadPath, UriKind.Absolute));
+                var pngBytes = File.ReadAllBytes(payloadPath);
+                using var stream = new MemoryStream(pngBytes, writable: false);
+                var decoder = new PngBitmapDecoder(
+                    stream,
+                    BitmapCreateOptions.PreservePixelFormat,
+                    BitmapCacheOption.OnLoad);
+                var image = decoder.Frames[0];
+                image.Freeze();
                 data.SetData(DataFormats.Bitmap, image);
+                data.SetData("PNG", pngBytes);
             }
             if (capture.TextRepresentations.TryGetValue(
                     "application/x-taskslist-files",
