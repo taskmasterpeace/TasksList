@@ -23,9 +23,10 @@
                        Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,5,0,16" />
             <StackPanel Grid.Row="2">
                 <TextBlock Text="NAME" FontSize="9" FontWeight="Bold" Foreground="{StaticResource MutedTextBrush}" />
-                <TextBox x:Name="NameBox" Margin="0,5,0,12" />
+                <TextBox x:Name="NameBox" Margin="0,5,0,12" AutomationProperties.Name="Place name" />
                 <TextBlock Text="PARENT" FontSize="9" FontWeight="Bold" Foreground="{StaticResource MutedTextBrush}" />
                 <ComboBox x:Name="ParentBox" Margin="0,5,0,0" Padding="9,6" DisplayMemberPath="Name"
+                          AutomationProperties.Name="Parent place"
                           Background="{StaticResource CardBrush}" Foreground="{StaticResource TextBrush}" />
             </StackPanel>
             <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">

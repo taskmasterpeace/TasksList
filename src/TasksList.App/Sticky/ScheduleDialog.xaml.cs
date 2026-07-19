@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using TasksList.App.Shell;
 using TasksList.Core.Notes;
 
 namespace TasksList.App.Sticky;
@@ -12,6 +13,7 @@ public partial class ScheduleDialog : Window
     {
         _allowAttention = allowAttention;
         InitializeComponent();
+        SourceInitialized += (_, _) => DwmWindowService.Apply(this, DwmWindowKind.Transient);
         HeadingText.Text = heading;
         AttentionPanel.Visibility = allowAttention ? Visibility.Visible : Visibility.Collapsed;
         DateBox.SelectedDate = DateTime.Today.AddDays(1);

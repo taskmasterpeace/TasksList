@@ -149,7 +149,7 @@
 
                 <TabControl Grid.Column="1" Margin="24,18,24,24" Background="Transparent" BorderThickness="0"
                             ItemContainerStyle="{StaticResource LibraryTab}">
-                    <TabItem Header="Notes">
+                    <TabItem Header="Notes" AutomationProperties.Name="Notes">
                         <Grid Margin="0,18,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -174,7 +174,8 @@
                                 </StackPanel>
                             </Grid>
                             <Grid Grid.Row="1" Margin="0,18,0,15">
-                                <TextBox x:Name="SearchBox" Height="40" TextChanged="SearchTextChanged" ToolTip="Search notes" />
+                                <TextBox x:Name="SearchBox" Height="40" TextChanged="SearchTextChanged" ToolTip="Search notes"
+                                         AutomationProperties.Name="Search notes" />
                                 <TextBlock Text="Search titles and note text…" Foreground="{StaticResource MutedTextBrush}"
                                            Margin="12,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
                                     <TextBlock.Style>
@@ -191,6 +192,7 @@
                             </Grid>
                             <Grid Grid.Row="2">
                                 <ListBox x:Name="NotesList" SelectionMode="Extended"
+                                         AutomationProperties.Name="Working notes"
                                          Background="Transparent" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -273,7 +275,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Clipboard">
+                    <TabItem Header="Clipboard" AutomationProperties.Name="Clipboard">
                         <Grid Margin="0,18,0,0">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                             <Grid>
@@ -321,7 +323,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Contexts">
+                    <TabItem Header="Contexts" AutomationProperties.Name="Contexts">
                         <Grid Margin="0,18,0,0">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                             <Grid>
@@ -371,7 +373,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Extensions">
+                    <TabItem Header="Extensions" AutomationProperties.Name="Extensions">
                         <Grid Margin="0,18,0,0">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                             <Grid>
@@ -418,7 +420,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Trash">
+                    <TabItem Header="Trash" AutomationProperties.Name="Trash">
                         <Grid Margin="0,18,0,0">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                             <StackPanel>

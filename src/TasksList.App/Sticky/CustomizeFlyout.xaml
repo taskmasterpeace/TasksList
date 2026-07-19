@@ -103,10 +103,13 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBox x:Name="BackgroundColorBox" Style="{StaticResource LightTextBox}"
+                             AutomationProperties.Name="Paper background color"
                              ToolTip="Background #RRGGBB" TextChanged="ColorTextChanged" />
                     <TextBox x:Name="TextColorBox" Grid.Column="2" Style="{StaticResource LightTextBox}"
+                             AutomationProperties.Name="Note text color"
                              ToolTip="Text #RRGGBB" TextChanged="ColorTextChanged" />
                     <TextBox x:Name="AccentColorBox" Grid.Column="4" Style="{StaticResource LightTextBox}"
+                             AutomationProperties.Name="Note accent color"
                              ToolTip="Accent #RRGGBB" TextChanged="ColorTextChanged" />
                 </Grid>
                 <Grid Margin="0,6,0,0">
@@ -122,7 +125,8 @@
 
                 <TextBlock Text="T Y P O G R A P H Y" Foreground="#7B6546" FontSize="10"
                            FontWeight="Bold" Margin="0,16,0,7" />
-                <ComboBox x:Name="FontFamilyBox" SelectionChanged="TypographyChanged" />
+                <ComboBox x:Name="FontFamilyBox" AutomationProperties.Name="Note font family"
+                          SelectionChanged="TypographyChanged" />
                 <Grid Margin="0,7,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -131,19 +135,22 @@
                         <ColumnDefinition Width="6" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="FontSizeBox" SelectionChanged="TypographyChanged">
+                    <ComboBox x:Name="FontSizeBox" AutomationProperties.Name="Note font size"
+                              SelectionChanged="TypographyChanged">
                         <ComboBoxItem Content="11" /><ComboBoxItem Content="12" />
                         <ComboBoxItem Content="13" /><ComboBoxItem Content="14" />
                         <ComboBoxItem Content="16" /><ComboBoxItem Content="18" />
                         <ComboBoxItem Content="22" /><ComboBoxItem Content="28" />
                     </ComboBox>
-                    <ComboBox x:Name="FontWeightBox" Grid.Column="2" SelectionChanged="TypographyChanged">
+                    <ComboBox x:Name="FontWeightBox" Grid.Column="2" AutomationProperties.Name="Note font weight"
+                              SelectionChanged="TypographyChanged">
                         <ComboBoxItem Content="400" Tag="Regular" />
                         <ComboBoxItem Content="500" Tag="Medium" />
                         <ComboBoxItem Content="600" Tag="Semibold" />
                         <ComboBoxItem Content="700" Tag="Bold" />
                     </ComboBox>
-                    <ComboBox x:Name="LineSpacingBox" Grid.Column="4" SelectionChanged="TypographyChanged">
+                    <ComboBox x:Name="LineSpacingBox" Grid.Column="4" AutomationProperties.Name="Note line spacing"
+                              SelectionChanged="TypographyChanged">
                         <ComboBoxItem Content="1.0" /><ComboBoxItem Content="1.2" />
                         <ComboBoxItem Content="1.4" /><ComboBoxItem Content="1.6" />
                         <ComboBoxItem Content="2.0" />
@@ -158,11 +165,12 @@
                         <ColumnDefinition Width="8" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="DensityBox" SelectionChanged="DensityChanged">
+                    <ComboBox x:Name="DensityBox" AutomationProperties.Name="Note density" SelectionChanged="DensityChanged">
                         <ComboBoxItem Content="Compact" /><ComboBoxItem Content="Comfortable" />
                         <ComboBoxItem Content="Spacious" />
                     </ComboBox>
-                    <ComboBox x:Name="ToolbarBox" Grid.Column="2" SelectionChanged="ToolbarChanged">
+                    <ComboBox x:Name="ToolbarBox" Grid.Column="2" AutomationProperties.Name="Toolbar visibility"
+                              SelectionChanged="ToolbarChanged">
                         <ComboBoxItem Content="Always" /><ComboBoxItem Content="Hover" />
                         <ComboBoxItem Content="Focused" /><ComboBoxItem Content="Hidden" />
                     </ComboBox>
@@ -176,8 +184,10 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="Shadow" Foreground="#4A4032" VerticalAlignment="Center" />
                     <Slider x:Name="ShadowSlider" Grid.Column="1" Minimum="0" Maximum="100"
+                            AutomationProperties.Name="Note shadow strength"
                             TickFrequency="10" ValueChanged="DecorationChanged" />
-                    <ComboBox x:Name="CornerBox" Grid.Column="3" SelectionChanged="DecorationChanged">
+                    <ComboBox x:Name="CornerBox" Grid.Column="3" AutomationProperties.Name="Note corner style"
+                              SelectionChanged="DecorationChanged">
                         <ComboBoxItem Content="Square" /><ComboBoxItem Content="Soft" />
                         <ComboBoxItem Content="Round" />
                     </ComboBox>
@@ -194,13 +204,14 @@
                            FontWeight="Bold" Margin="0,17,0,7" />
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <ComboBox x:Name="NamedStyleBox" DisplayMemberPath="Name" />
+                    <ComboBox x:Name="NamedStyleBox" DisplayMemberPath="Name" AutomationProperties.Name="Saved note style" />
                     <Button Grid.Column="2" Style="{StaticResource MiniButton}" Content="Apply"
                             Click="ApplyNamedStyleClick" />
                 </Grid>
                 <Grid Margin="0,7,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBox x:Name="StyleNameBox" Style="{StaticResource LightTextBox}" ToolTip="Style name" />
+                    <TextBox x:Name="StyleNameBox" Style="{StaticResource LightTextBox}" ToolTip="Style name"
+                             AutomationProperties.Name="New style name" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
                         <CheckBox x:Name="DefaultStyleCheck" Content="Default" Foreground="#4A4032"
                                   VerticalAlignment="Center" Margin="0,0,7,0" />

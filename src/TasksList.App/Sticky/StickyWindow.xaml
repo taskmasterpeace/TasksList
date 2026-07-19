@@ -118,6 +118,7 @@
                                    Foreground="#2E271C" FontWeight="SemiBold" FontSize="14"
                                    TextTrimming="CharacterEllipsis" />
                         <TextBox x:Name="TitleEditor" Visibility="Collapsed" Background="#16FFFFFF"
+                                 AutomationProperties.Name="Note title"
                                  shell:WindowChrome.IsHitTestVisibleInChrome="True"
                                  BorderBrush="#705C451A" BorderThickness="0,0,0,1" Padding="0"
                                  Foreground="#2E271C" FontWeight="SemiBold" FontSize="14"
@@ -147,6 +148,7 @@
 
             <Grid Grid.Row="1">
                 <TextBox x:Name="MarkdownBox" AcceptsReturn="True" AcceptsTab="True"
+                         AutomationProperties.Name="Note Markdown"
                          TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                          Background="Transparent" Foreground="#3A3022" BorderThickness="0"
                          Padding="16,13" FontFamily="Segoe UI Variable Text, Segoe UI"
@@ -176,6 +178,7 @@
                             FontWeight="Bold" Click="AttachClick"
                             ToolTip="Attach to the last application you used" />
                     <Button x:Name="ModeButton" Content="PREVIEW" Foreground="#5C4930"
+                            AutomationProperties.Name="Toggle edit and preview"
                             Background="Transparent" BorderThickness="0" Padding="7,3"
                             Margin="4,0,0,0" FontSize="9" FontWeight="Bold"
                             Click="ModeClick" />
@@ -189,6 +192,7 @@
             </Grid>
 
             <Border x:Name="ReminderBanner" Grid.Row="0" Grid.RowSpan="3"
+                    AutomationProperties.LiveSetting="Assertive"
                     shell:WindowChrome.IsHitTestVisibleInChrome="True"
                     VerticalAlignment="Top" HorizontalAlignment="Center" Margin="12,10"
                     Padding="12,7" CornerRadius="10" Background="#FBE7A7"

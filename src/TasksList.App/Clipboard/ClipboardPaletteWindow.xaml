@@ -120,18 +120,21 @@
                 <ToggleButton x:Name="FavoriteFilter" Content="★ Favorites" Style="{StaticResource FilterToggle}" Checked="FilterChanged" Unchecked="FilterChanged" />
                 <ToggleButton x:Name="UsedFilter" Grid.Column="1" Content="Used" Style="{StaticResource FilterToggle}" Checked="FilterChanged" Unchecked="FilterChanged" />
                 <ToggleButton x:Name="UnfiledFilter" Grid.Column="2" Content="Unfiled" Style="{StaticResource FilterToggle}" Checked="FilterChanged" Unchecked="FilterChanged" />
-                <ComboBox x:Name="TypeFilter" Grid.Column="4" Style="{StaticResource PaletteCombo}" SelectionChanged="FilterChanged">
+                <ComboBox x:Name="TypeFilter" Grid.Column="4" Style="{StaticResource PaletteCombo}"
+                          AutomationProperties.Name="Filter by type" SelectionChanged="FilterChanged">
                     <ComboBoxItem Content="All types" Tag="All" IsSelected="True" />
                     <ComboBoxItem Content="Text" Tag="Text" /><ComboBoxItem Content="HTML" Tag="Html" />
                     <ComboBoxItem Content="Rich text" Tag="RichText" /><ComboBoxItem Content="Markdown" Tag="Markdown" />
                     <ComboBoxItem Content="Images" Tag="Image" /><ComboBoxItem Content="Files" Tag="Files" />
                 </ComboBox>
-                <ComboBox x:Name="DateFilter" Grid.Column="6" Style="{StaticResource PaletteCombo}" SelectionChanged="FilterChanged">
+                <ComboBox x:Name="DateFilter" Grid.Column="6" Style="{StaticResource PaletteCombo}"
+                          AutomationProperties.Name="Filter by date" SelectionChanged="FilterChanged">
                     <ComboBoxItem Content="Any date" Tag="All" IsSelected="True" />
                     <ComboBoxItem Content="Today" Tag="Today" /><ComboBoxItem Content="Last 7 days" Tag="7" />
                     <ComboBoxItem Content="Last 30 days" Tag="30" />
                 </ComboBox>
                 <ComboBox x:Name="SourceFilter" Grid.Column="8" Style="{StaticResource PaletteCombo}"
+                          AutomationProperties.Name="Filter by source application"
                           SelectionChanged="FilterChanged" ToolTip="Source application">
                     <ComboBox.ItemTemplate>
                         <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></DataTemplate>
@@ -143,6 +146,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="1.05*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="0.95*" /></Grid.ColumnDefinitions>
                 <Border Background="#E622272A" BorderBrush="#3A4247" BorderThickness="1" CornerRadius="10">
                     <ListBox x:Name="ClipList" Background="Transparent" BorderThickness="0" SelectionMode="Extended"
+                             AutomationProperties.Name="Clipboard history"
                              SelectionChanged="ClipSelectionChanged" PreviewKeyDown="ListKeyDown"
                              PreviewMouseLeftButtonDown="ClipMouseDown" PreviewMouseMove="ClipMouseMove"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -179,6 +183,7 @@
                         </StackPanel>
                         <Grid Grid.Row="1">
                             <TextBox x:Name="PreviewText" IsReadOnly="True" AcceptsReturn="True"
+                                     AutomationProperties.Name="Clipboard item preview"
                                      TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#151719" />
                             <Border x:Name="PreviewImageHost" Background="#151719" CornerRadius="8" Visibility="Collapsed">
                                 <Image x:Name="PreviewImage" Stretch="Uniform" Margin="8" />
@@ -187,6 +192,7 @@
                         <Grid Grid.Row="2" Margin="0,12,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
                             <ComboBox x:Name="PlaceBox" Style="{StaticResource PaletteCombo}"
+                                      AutomationProperties.Name="Assign to place"
                                       ToolTip="Assign selected clips to a Place or note">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate>
@@ -208,7 +214,8 @@
                     <Button Content="Make note" Style="{StaticResource ActionButton}" Click="MakeNoteClick" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="★" Width="42" Style="{StaticResource ActionButton}" Click="FavoriteClick" ToolTip="Favorite selected" />
+                    <Button Content="★" Width="42" Style="{StaticResource ActionButton}" Click="FavoriteClick"
+                            ToolTip="Favorite selected" AutomationProperties.Name="Favorite selected clipboard items" />
                     <Button Content="Edit" Style="{StaticResource ActionButton}" Click="EditClick" />
                     <Button Content="Duplicate" Style="{StaticResource ActionButton}" Click="DuplicateClick" />
                     <Button Content="Delete" Style="{StaticResource ActionButton}" Click="DeleteClick" />

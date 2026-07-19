@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
     {
         _original = settings;
         InitializeComponent();
+        SourceInitialized += (_, _) => DwmWindowService.Apply(this, DwmWindowKind.Transient);
         SnapSlider.Value = settings.SnapTolerance;
         ReduceMotionCheck.IsChecked = settings.ReduceMotion;
         PauseMonitoringCheck.IsChecked = settings.MonitoringPaused;
