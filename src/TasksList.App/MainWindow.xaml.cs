@@ -48,8 +48,10 @@ public partial class MainWindow : Window
     private bool _contextTickRunning;
     private bool _exitRequested;
     private readonly HashSet<NoteId> _activeReminders = [];
+    private readonly HashSet<NoteId> _notifiedReminders = [];
     private PendingScreenCapture? _lastScreenCapture;
     private readonly NoteCardCommandService _noteCardCommands;
+    private readonly IWindowsAppNotificationService? _windowsNotifications;
     private readonly AppNotificationService _notifications = new();
     private bool _promoteDuplicateClips = true;
     private double _paletteWidth = 940;
@@ -60,9 +62,13 @@ public partial class MainWindow : Window
 
     public event Action<double, double>? ClipboardPaletteSizeChanged;
 
-    public MainWindow(TasksListDatabase database, string? dataDirectory = null)
+    public MainWindow(
+        TasksListDatabase database,
+        string? dataDirectory = null,
+        IWindowsAppNotificationService? windowsNotifications = null)
     {
         _database = database;
+        _windowsNotifications = windowsNotifications;
         InitializeComponent();
         _noteCardCommands = new NoteCardCommandService(
             new TasksListNoteCardCommandStore(_database),
@@ -294,6 +300,13 @@ public partial class MainWindow : Window
         Show();
         WindowState = WindowState.Normal;
         Activate();
+    }
+
+    public async Task OpenNoteFromNotificationAsync(NoteId noteId)
+    {
+        ShowLibraryFromShell();
+        var note = (await _database.ListNotesAsync()).FirstOrDefault(item => item.Id == noteId);
+        if (note is not null) OpenSticky(note);
     }
 
     public async void ShowClipboardPaletteFromShell()
@@ -897,6 +910,10 @@ public partial class MainWindow : Window
 
             if (decision.ReminderDue)
             {
+                if (_notifiedReminders.Add(note.Id))
+                {
+                    _windowsNotifications?.TryShowReminder(note);
+                }
                 if (_openStickies.TryGetValue(note.Id, out var reminderSticky))
                 {
                     if (_activeReminders.Add(note.Id))
@@ -912,6 +929,7 @@ public partial class MainWindow : Window
             else
             {
                 _activeReminders.Remove(note.Id);
+                _notifiedReminders.Remove(note.Id);
             }
         }
     }

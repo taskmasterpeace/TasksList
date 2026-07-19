@@ -15,9 +15,17 @@ public partial class App : Application
     private AppSettingsStore? _settingsStore;
     private AppSettings _settings = AppSettings.Default;
     private WindowsThemeService? _windowsThemeService;
+    private IWindowsAppNotificationService? _windowsNotifications;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        if (e.Args.Contains("--unregister-notifications", StringComparer.OrdinalIgnoreCase))
+        {
+            WindowsAppNotificationService.TryUnregisterAll();
+            Shutdown();
+            return;
+        }
+
         var identityError = WindowsAppIdentity.TryApply();
         base.OnStartup(e);
 
@@ -39,7 +47,11 @@ public partial class App : Application
             await database.InitializeAsync();
             _settingsStore = new AppSettingsStore(Path.Combine(dataDirectory, "settings.json"));
             _settings = _settingsStore.Load();
-            var window = new MainWindow(database, dataDirectory);
+            _windowsNotifications = new WindowsAppNotificationService();
+            var window = new MainWindow(database, dataDirectory, _windowsNotifications);
+            _windowsNotifications.Activated += (_, activation) =>
+                Dispatcher.BeginInvoke(() => _ = window.OpenNoteFromNotificationAsync(activation.NoteId));
+            var notificationError = _windowsNotifications.TryRegister();
             window.ClipboardPaletteSizeChanged += (width, height) =>
             {
                 _settings = _settings with
@@ -55,6 +67,10 @@ public partial class App : Application
             if (identityError is not null)
             {
                 window.ShowNotification(identityError, AppNotificationKind.Warning);
+            }
+            if (notificationError is not null)
+            {
+                window.ShowNotification(notificationError, AppNotificationKind.Warning);
             }
 
             _tray = new TrayService(
@@ -93,6 +109,7 @@ public partial class App : Application
     {
         _windowsThemeService?.Dispose();
         _hotkeys?.Dispose();
+        _windowsNotifications?.Unregister();
         _tray?.Dispose();
         base.OnExit(e);
     }

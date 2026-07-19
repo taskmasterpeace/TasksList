@@ -10,10 +10,12 @@
     <Content Include="..\..\themes\default\theme.json" Link="themes\default\theme.json" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="..\..\assets\brand\generated\TasksList.ico" Link="Assets\TasksList.ico" />
     <Resource Include="..\..\assets\brand\generated\app-icon-64.png" Link="Assets\app-icon-64.png" />
+    <Content Include="..\..\assets\brand\generated\app-icon-64.png" Link="Assets\notification-icon.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.23" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260710003" />
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
@@ -26,7 +28,7 @@
     <ApplicationIcon>..\..\assets\brand\generated\TasksList.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppSDKSelfContained Condition="'$(RuntimeIdentifier)' != ''">true</WindowsAppSDKSelfContained>
   </PropertyGroup>
 
 </Project>
