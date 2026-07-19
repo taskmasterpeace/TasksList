@@ -15,7 +15,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.23" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260710003" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="1.8.260709000" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="1.8.260710003" />
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 

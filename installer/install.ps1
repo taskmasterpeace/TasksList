@@ -19,6 +19,7 @@ if (-not $InstallRoot.StartsWith([System.IO.Path]::GetFullPath($env:LOCALAPPDATA
 
 Get-Process -Name 'TasksList.App' -ErrorAction SilentlyContinue | Stop-Process -Force
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
+Get-ChildItem -LiteralPath $InstallRoot -Force | Remove-Item -Recurse -Force
 Copy-Item -Path (Join-Path $SourceRoot '*') -Destination $InstallRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $InstallRoot 'uninstall.ps1') -Force
 $executablePath = Join-Path $InstallRoot 'TasksList.App.exe'

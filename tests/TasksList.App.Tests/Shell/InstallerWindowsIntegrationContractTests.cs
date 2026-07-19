@@ -15,6 +15,7 @@ public sealed class InstallerWindowsIntegrationContractTests
         Assert.Contains("EstimatedSize", installer, StringComparison.Ordinal);
         Assert.Contains("URLInfoAbout", installer, StringComparison.Ordinal);
         Assert.Contains("https://github.com/taskmasterpeace/TasksList", installer, StringComparison.Ordinal);
+        Assert.Contains("Get-ChildItem -LiteralPath $InstallRoot -Force | Remove-Item", installer, StringComparison.Ordinal);
     }
 
     [Fact]
