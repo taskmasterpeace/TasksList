@@ -1187,30 +1187,6 @@ public partial class MainWindow : Window
         };
     }
 
-    private void TitleBarMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton == MouseButton.Left)
-        {
-            if (e.ClickCount == 2)
-            {
-                ToggleMaximize();
-                return;
-            }
-
-            DragMove();
-        }
-    }
-
-    private void MinimizeClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-
-    private void MaximizeClick(object sender, RoutedEventArgs e) => ToggleMaximize();
-
-    private void CloseClick(object sender, RoutedEventArgs e) => Close();
-
-    private void ToggleMaximize() =>
-        WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
 }
 
 public sealed class NoteCardViewModel

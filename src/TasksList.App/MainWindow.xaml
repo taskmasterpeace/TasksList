@@ -2,8 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Task'sList" Width="1240" Height="780" MinWidth="980" MinHeight="620"
-        WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True"
-        Background="Transparent" AllowDrop="True" DragOver="MarkdownDragOver" Drop="MarkdownDrop">
+        WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
+        AllowsTransparency="False" ResizeMode="CanResize"
+        Background="{StaticResource CanvasBrush}" AllowDrop="True"
+        DragOver="MarkdownDragOver" Drop="MarkdownDrop">
     <Window.Resources>
         <Style x:Key="LibraryTab" TargetType="TabItem">
             <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
@@ -44,23 +46,17 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="1" CornerRadius="14">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="30" ShadowDepth="8" Opacity="0.45" Color="#000000" />
-        </Border.Effect>
+    <Border Background="{StaticResource CanvasBrush}" BorderThickness="0" CornerRadius="0">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="64" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <Border Background="Transparent" BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="0,0,0,1" Cursor="Hand"
-                    MouseLeftButtonDown="TitleBarMouseDown">
-                <Grid Margin="20,0,10,0">
+            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,0,1">
+                <Grid Margin="20,0,20,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
@@ -74,18 +70,10 @@
                         </StackPanel>
                     </StackPanel>
                     <Border Grid.Column="1" Background="#202D29" CornerRadius="9" Padding="10,5"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                            HorizontalAlignment="Right" VerticalAlignment="Center">
                         <TextBlock x:Name="StatusText" Text="LOCAL · PRIVATE" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{StaticResource SuccessBrush}" />
                     </Border>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Style="{StaticResource GhostButton}" Content="—" Width="38" Height="36"
-                                AutomationProperties.Name="Minimize" ToolTip="Minimize" Click="MinimizeClick" />
-                        <Button Style="{StaticResource GhostButton}" Content="□" Width="38" Height="36"
-                                AutomationProperties.Name="Maximize" ToolTip="Maximize" Click="MaximizeClick" />
-                        <Button Style="{StaticResource GhostButton}" Content="×" Width="38" Height="36"
-                                AutomationProperties.Name="Close" ToolTip="Close" Click="CloseClick" />
-                    </StackPanel>
                 </Grid>
             </Border>
 

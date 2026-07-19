@@ -5,7 +5,7 @@ namespace TasksList.App.Tests.Shell;
 public sealed class MainWindowChromeContractTests
 {
     [Fact]
-    public void MainWindowUsesBrandResourcesAndACompleteDraggableTitleSurface()
+    public void MainWindowUsesBrandResourcesWithTheNativeWindowsCaption()
     {
         var repository = FindRepositoryRoot();
         var project = XDocument.Load(Path.Combine(repository, "src", "TasksList.App", "TasksList.App.csproj"));
@@ -24,15 +24,12 @@ public sealed class MainWindowChromeContractTests
             element.Attribute("Value")?.Value.Contains("TasksList.ico", StringComparison.OrdinalIgnoreCase) == true);
 
         var mainWindow = XDocument.Load(Path.Combine(repository, "src", "TasksList.App", "MainWindow.xaml"));
-        var titleBar = Assert.Single(mainWindow.Descendants().Where(element =>
-            element.Name.LocalName == "Border" &&
-            element.Attribute("MouseLeftButtonDown")?.Value == "TitleBarMouseDown"));
-        Assert.Equal("Transparent", titleBar.Attribute("Background")?.Value);
-        Assert.Equal("Hand", titleBar.Attribute("Cursor")?.Value);
-        Assert.Contains(titleBar.Descendants(), element =>
+        Assert.Equal("SingleBorderWindow", mainWindow.Root?.Attribute("WindowStyle")?.Value);
+        Assert.Equal("False", mainWindow.Root?.Attribute("AllowsTransparency")?.Value);
+        Assert.Contains(mainWindow.Descendants(), element =>
             element.Name.LocalName == "Image" &&
             element.Attribute("Source")?.Value.Contains("app-icon-64.png", StringComparison.OrdinalIgnoreCase) == true);
-        Assert.DoesNotContain(titleBar.Descendants(), element =>
+        Assert.DoesNotContain(mainWindow.Descendants(), element =>
             element.Name.LocalName == "TextBlock" && element.Attribute("Text")?.Value == "T");
     }
 
