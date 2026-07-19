@@ -19,6 +19,7 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        var identityError = WindowsAppIdentity.TryApply();
         if (e.Args.Contains("--unregister-notifications", StringComparer.OrdinalIgnoreCase))
         {
             WindowsAppNotificationService.TryUnregisterAll();
@@ -26,7 +27,6 @@ public partial class App : Application
             return;
         }
 
-        var identityError = WindowsAppIdentity.TryApply();
         base.OnStartup(e);
 
         var dataDirectory = Environment.GetEnvironmentVariable("TASKSLIST_DATA_DIR") ??

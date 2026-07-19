@@ -45,9 +45,11 @@ public sealed class WindowsProcessManifestContractTests
         var source = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(), "src", "TasksList.App", "App.xaml.cs"));
         var identity = source.IndexOf("WindowsAppIdentity.TryApply()", StringComparison.Ordinal);
+        var notificationCleanup = source.IndexOf("--unregister-notifications", StringComparison.Ordinal);
         var baseStartup = source.IndexOf("base.OnStartup(e)", StringComparison.Ordinal);
 
         Assert.True(identity >= 0, "App startup must apply the explicit Windows identity.");
+        Assert.True(identity < notificationCleanup, "Notification cleanup must run under the stable Windows identity.");
         Assert.True(identity < baseStartup, "Windows identity must be set before WPF creates shell windows.");
     }
 
