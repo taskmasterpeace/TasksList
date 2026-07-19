@@ -1,4 +1,5 @@
 using TasksList.App.Sticky;
+using TasksList.Core.Notes;
 
 namespace TasksList.App.Tests.Sticky;
 
@@ -51,5 +52,22 @@ public sealed class StickyInteractionPolicyTests
     public void TitleEditingKeysHaveExplicitActions(string key, StickyInteractionAction expected)
     {
         Assert.Equal(expected, StickyInteractionPolicy.ResolveTitleKey(key));
+    }
+
+    [Theory]
+    [InlineData(ToolbarVisibility.Always, false, false, true)]
+    [InlineData(ToolbarVisibility.Hover, false, false, true)]
+    [InlineData(ToolbarVisibility.Focused, true, false, true)]
+    [InlineData(ToolbarVisibility.Focused, false, true, false)]
+    [InlineData(ToolbarVisibility.Hidden, true, true, false)]
+    public void ToolbarVisibilityNeverDependsOnCrossingAHiddenControl(
+        ToolbarVisibility visibility,
+        bool hasKeyboardFocus,
+        bool isActive,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            StickyInteractionPolicy.ShouldShowToolbar(visibility, hasKeyboardFocus, isActive));
     }
 }

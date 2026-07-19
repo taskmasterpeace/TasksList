@@ -1,3 +1,5 @@
+using TasksList.Core.Notes;
+
 namespace TasksList.App.Sticky;
 
 public enum StickyInteractionAction
@@ -39,5 +41,17 @@ public static class StickyInteractionPolicy
         "Enter" => StickyInteractionAction.CommitTitleEdit,
         "Escape" => StickyInteractionAction.CancelTitleEdit,
         _ => StickyInteractionAction.None,
+    };
+
+    public static bool ShouldShowToolbar(
+        ToolbarVisibility visibility,
+        bool hasKeyboardFocus,
+        bool isActive) => visibility switch
+    {
+        ToolbarVisibility.Always => true,
+        ToolbarVisibility.Hover => true,
+        ToolbarVisibility.Focused => hasKeyboardFocus,
+        ToolbarVisibility.Hidden => false,
+        _ => isActive,
     };
 }

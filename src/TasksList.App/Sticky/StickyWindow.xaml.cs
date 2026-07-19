@@ -11,6 +11,7 @@ using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using TasksList.App.Editor;
+using TasksList.App.Shell;
 using TasksList.Core.Markdown;
 using TasksList.Core.Models;
 using TasksList.Core.Notes;
@@ -21,6 +22,7 @@ namespace TasksList.App.Sticky;
 public partial class StickyWindow : Window
 {
     private bool _skipPresentationSaveOnClose;
+    private HwndSource? _windowSource;
     private readonly TasksListDatabase _database;
     private readonly DispatcherTimer _contentSaveTimer;
     private readonly DispatcherTimer _presentationSaveTimer;
@@ -96,9 +98,15 @@ public partial class StickyWindow : Window
             _isLoading = false;
         };
         SourceInitialized += (_, _) =>
+        {
             GhostModeService.SetGhost(this, _controller.Presentation.Ghost);
+            DwmWindowService.Apply(this, DwmWindowKind.Sticky);
+            _windowSource = PresentationSource.FromVisual(this) as HwndSource;
+            _windowSource?.AddHook(StickyWindowProcedure);
+        };
         LocationChanged += WindowBoundsChanged;
         SizeChanged += WindowBoundsChanged;
+        StateChanged += StickyWindowStateChanged;
     }
 
     public event EventHandler? NoteSaved;
@@ -147,17 +155,17 @@ public partial class StickyWindow : Window
         {
             SystemSounds.Exclamation.Play();
         }
+        ReminderBanner.Visibility = Visibility.Visible;
         if (decision.Pulse && !_reduceMotionProvider())
         {
-            PaperShadow.BeginAnimation(
-                System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
-                new DoubleAnimation(0.95, TimeSpan.FromMilliseconds(420))
+            ReminderBanner.BeginAnimation(
+                OpacityProperty,
+                new DoubleAnimation(0.45, 1, TimeSpan.FromMilliseconds(420))
                 {
                     AutoReverse = true,
                     RepeatBehavior = new RepeatBehavior(4),
                 });
         }
-        ReminderBanner.Visibility = Visibility.Visible;
         Show();
         Activate();
     }
@@ -249,9 +257,12 @@ public partial class StickyWindow : Window
             Opacity = IsActive ? presentation.ActiveOpacity : presentation.InactiveOpacity;
             ResizeMode = presentation.Locked || presentation.Rolled
                 ? ResizeMode.NoResize
-                : ResizeMode.CanResizeWithGrip;
+                : ResizeMode.CanResize;
+            StickyWindowChrome.CaptionHeight = presentation.Locked
+                ? 0
+                : HeaderHeight(presentation.Density);
             MarkdownBox.IsReadOnly = presentation.Locked;
-            TitleText.Cursor = presentation.Locked ? Cursors.Arrow : Cursors.SizeAll;
+            TitleText.Cursor = Cursors.Arrow;
 
             var highContrast = SystemParameters.HighContrast;
             var background = highContrast ? SystemColors.WindowColor : ParseColor(presentation.BackgroundHex);
@@ -260,6 +271,7 @@ public partial class StickyWindow : Window
             Paper.Background = presentation.TextureEnabled && !highContrast
                 ? CreatePaperBrush(background)
                 : new SolidColorBrush(background);
+            Background = Paper.Background;
             Paper.BorderBrush = highContrast
                 ? SystemColors.WindowTextBrush
                 : new SolidColorBrush(Color.FromArgb(
@@ -276,8 +288,6 @@ public partial class StickyWindow : Window
                 CornerStyle.Round => new CornerRadius(18),
                 _ => new CornerRadius(10),
             };
-            PaperShadow.Opacity = highContrast ? 0 : presentation.ShadowStrength;
-
             var textBrush = new SolidColorBrush(text);
             var mutedBrush = new SolidColorBrush(Color.FromArgb(185, text.R, text.G, text.B));
             TitleText.Foreground = textBrush;
@@ -359,22 +369,22 @@ public partial class StickyWindow : Window
 
     private void ApplyToolbarState(ToolbarVisibility visibility)
     {
-        if (visibility == ToolbarVisibility.Always)
+        var visible = StickyInteractionPolicy.ShouldShowToolbar(
+            visibility,
+            IsKeyboardFocusWithin,
+            IsActive);
+        SetToolbarOpacity(visible ? 1 : 0);
+        ChromePanel.IsHitTestVisible = visible;
+    }
+
+    private void StickyWindowStateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState != WindowState.Maximized) return;
+
+        WindowState = WindowState.Normal;
+        if (!_controller.Presentation.Locked)
         {
-            SetToolbarOpacity(1);
-            ChromePanel.IsHitTestVisible = true;
-        }
-        else if (visibility == ToolbarVisibility.Hidden)
-        {
-            SetToolbarOpacity(0);
-            ChromePanel.IsHitTestVisible = false;
-        }
-        else
-        {
-            var visible = Header.IsMouseOver ||
-                          (visibility == ToolbarVisibility.Focused && IsKeyboardFocusWithin);
-            SetToolbarOpacity(visible ? 1 : 0);
-            ChromePanel.IsHitTestVisible = visible;
+            _controller.ToggleRolled();
         }
     }
 
@@ -401,38 +411,19 @@ public partial class StickyWindow : Window
     private void HeaderMouseLeave(object sender, MouseEventArgs e) =>
         ApplyToolbarState(_controller.Presentation.ToolbarVisibility);
 
-    private void TitleBarMouseDown(object sender, MouseButtonEventArgs e)
+    private nint StickyWindowProcedure(
+        nint windowHandle,
+        int message,
+        nint wordParameter,
+        nint longParameter,
+        ref bool handled)
     {
-        if (e.ChangedButton != MouseButton.Left || _controller.Presentation.Locked)
+        const int ExitSizeMove = 0x0232;
+        if (message == ExitSizeMove && !_controller.Presentation.Locked)
         {
-            return;
+            Dispatcher.BeginInvoke(SnapAfterDrag);
         }
-
-        var source = e.OriginalSource as DependencyObject;
-        var overControl = FindAncestor<ButtonBase>(source) is not null ||
-                          FindAncestor<TextBox>(source) is not null;
-        var overTitle = IsWithin(source, TitleText);
-        var action = StickyInteractionPolicy.ResolveHeaderAction(
-            _isTitleEditing,
-            overControl,
-            overTitle,
-            e.ClickCount);
-        switch (action)
-        {
-            case StickyInteractionAction.BeginTitleEdit:
-                BeginTitleEdit();
-                e.Handled = true;
-                break;
-            case StickyInteractionAction.ToggleRoll:
-                _controller.ToggleRolled();
-                e.Handled = true;
-                break;
-            case StickyInteractionAction.Drag:
-                DragMove();
-                SnapAfterDrag();
-                e.Handled = true;
-                break;
-        }
+        return nint.Zero;
     }
 
     private void SnapAfterDrag()
@@ -738,9 +729,8 @@ public partial class StickyWindow : Window
     private void AcknowledgeReminderClick(object sender, RoutedEventArgs e)
     {
         ReminderBanner.Visibility = Visibility.Collapsed;
-        PaperShadow.BeginAnimation(
-            System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
-            null);
+        ReminderBanner.BeginAnimation(OpacityProperty, null);
+        ReminderBanner.Opacity = 1;
         _controller.AcknowledgeReminder(DateTimeOffset.Now);
     }
 
@@ -1022,6 +1012,8 @@ public partial class StickyWindow : Window
 
     protected override async void OnClosed(EventArgs e)
     {
+        _windowSource?.RemoveHook(StickyWindowProcedure);
+        _windowSource = null;
         _contentSaveTimer.Stop();
         _presentationSaveTimer.Stop();
         _hudTimer.Stop();

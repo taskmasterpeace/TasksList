@@ -5,7 +5,7 @@ namespace TasksList.App.Tests.Sticky;
 public sealed class StickyWindowChromeContractTests
 {
     [Fact]
-    public void StickyHeaderIsACompleteDraggableHitSurface()
+    public void StickyHeaderUsesTheNativeWindowChromeCaptionSurface()
     {
         var stickyWindow = XDocument.Load(Path.Combine(
             FindRepositoryRoot(),
@@ -14,13 +14,17 @@ public sealed class StickyWindowChromeContractTests
             "Sticky",
             "StickyWindow.xaml"));
 
+        var chrome = Assert.Single(stickyWindow.Descendants().Where(element =>
+            element.Name.LocalName == "WindowChrome"));
+        Assert.Equal("48", chrome.Attribute("CaptionHeight")?.Value);
+
         var header = Assert.Single(stickyWindow.Descendants().Where(element =>
-            element.Name.LocalName == "Border" &&
-            element.Attribute("MouseLeftButtonDown")?.Value == "TitleBarMouseDown"));
+            element.Attributes().Any(attribute =>
+                attribute.Name.LocalName == "Name" && attribute.Value == "Header")));
 
         Assert.Equal("Transparent", header.Attribute("Background")?.Value);
-        Assert.Equal("SizeAll", header.Attribute("Cursor")?.Value);
-        Assert.Equal("TitleBarMouseDown", header.Attribute("MouseLeftButtonDown")?.Value);
+        Assert.Null(header.Attribute("Cursor"));
+        Assert.Null(header.Attribute("MouseLeftButtonDown"));
         Assert.Equal("HeaderMouseEnter", header.Attribute("MouseEnter")?.Value);
         Assert.Equal("HeaderMouseLeave", header.Attribute("MouseLeave")?.Value);
     }
