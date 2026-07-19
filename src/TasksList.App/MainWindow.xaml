@@ -15,7 +15,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="TabRoot" Background="Transparent" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="TabRoot" Background="Transparent" BorderBrush="Transparent"
+                                BorderThickness="2" CornerRadius="10" Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -25,6 +26,9 @@
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="TabRoot" Property="Background" Value="{StaticResource CardHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="TabRoot" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -210,6 +214,9 @@
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsSelected" Value="True">
                                                                     <Setter TargetName="SelectionFrame" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                                                    <Setter TargetName="SelectionFrame" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
