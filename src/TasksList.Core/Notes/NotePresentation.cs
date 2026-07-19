@@ -261,6 +261,9 @@ public sealed record NotePresentation
     public NotePresentation SoftDelete(DateTimeOffset deletedAt) =>
         this with { DeletedAt = deletedAt, ModifiedAt = deletedAt };
 
+    public NotePresentation Archive(DateTimeOffset archivedAt) =>
+        this with { HiddenAt = archivedAt, ModifiedAt = archivedAt };
+
     public NotePresentation Restore(DateTimeOffset restoredAt) =>
         this with { DeletedAt = null, HiddenAt = null, ModifiedAt = restoredAt };
 
