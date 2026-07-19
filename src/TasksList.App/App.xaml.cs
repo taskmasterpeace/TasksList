@@ -18,6 +18,7 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        var identityError = WindowsAppIdentity.TryApply();
         base.OnStartup(e);
 
         var dataDirectory = Environment.GetEnvironmentVariable("TASKSLIST_DATA_DIR") ??
@@ -51,6 +52,10 @@ public partial class App : Application
             MainWindow = window;
             window.Show();
             window.ApplyClipboardSettings(_settings);
+            if (identityError is not null)
+            {
+                window.ShowNotification(identityError, AppNotificationKind.Warning);
+            }
 
             _tray = new TrayService(
                 new TrayCommands(
