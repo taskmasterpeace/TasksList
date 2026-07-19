@@ -4,6 +4,7 @@ public enum DwmWindowKind
 {
     MainWindow,
     Sticky,
+    Palette,
 }
 
 public enum DwmWindowCornerPreference
@@ -41,7 +42,7 @@ public sealed record DwmWindowOptions(
 
         var canUseWindows11Visuals = environment.IsWindows11OrGreater &&
                                      !environment.IsHighContrast;
-        var useBackdrop = kind == DwmWindowKind.MainWindow &&
+        var useBackdrop = kind is DwmWindowKind.MainWindow or DwmWindowKind.Palette &&
                           canUseWindows11Visuals &&
                           environment.IsTransparencyEnabled &&
                           !environment.IsRemoteSession;
@@ -52,7 +53,9 @@ public sealed record DwmWindowOptions(
                 ? DwmWindowCornerPreference.Round
                 : null,
             SystemBackdrop: useBackdrop
-                ? DwmSystemBackdropType.MainWindow
+                ? kind == DwmWindowKind.Palette
+                    ? DwmSystemBackdropType.TransientWindow
+                    : DwmSystemBackdropType.MainWindow
                 : null);
     }
 }

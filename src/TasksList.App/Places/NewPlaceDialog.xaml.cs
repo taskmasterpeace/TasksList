@@ -1,4 +1,5 @@
 using System.Windows;
+using TasksList.App.Shell;
 using TasksList.Core.Models;
 
 namespace TasksList.App.Places;
@@ -10,6 +11,7 @@ public partial class NewPlaceDialog : Window
     public NewPlaceDialog(IReadOnlyList<Place> places)
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => DwmWindowService.Apply(this, DwmWindowKind.Palette);
         _choices = [
             new ParentChoice(null, "Top level"),
             .. places.Select(place => new ParentChoice(place.Id, place.Name)),

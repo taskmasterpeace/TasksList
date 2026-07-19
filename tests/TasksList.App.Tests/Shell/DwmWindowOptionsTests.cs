@@ -56,4 +56,14 @@ public sealed class DwmWindowOptionsTests
         Assert.Equal(DwmWindowCornerPreference.Round, options.CornerPreference);
         Assert.Null(options.SystemBackdrop);
     }
+
+    [Fact]
+    public void PaletteUsesTransientBackdrop()
+    {
+        var environment = new DwmEnvironment(true, false, true, false, true);
+
+        var options = DwmWindowOptions.Resolve(DwmWindowKind.Palette, environment);
+
+        Assert.Equal(DwmSystemBackdropType.TransientWindow, options.SystemBackdrop);
+    }
 }

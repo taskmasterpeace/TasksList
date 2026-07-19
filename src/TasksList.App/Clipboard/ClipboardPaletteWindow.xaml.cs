@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using TasksList.App.Sticky;
+using TasksList.App.Shell;
 using TasksList.Core.Clipboard;
 using TasksList.Core.Models;
 using TasksList.Infrastructure.Storage;
@@ -35,6 +36,7 @@ public partial class ClipboardPaletteWindow : Window
         _pasteService = pasteService;
         _makeNote = makeNote;
         InitializeComponent();
+        SourceInitialized += (_, _) => DwmWindowService.Apply(this, DwmWindowKind.Palette);
         ClipList.ItemsSource = _items;
         Closing += PaletteClosing;
         IsVisibleChanged += (_, _) =>

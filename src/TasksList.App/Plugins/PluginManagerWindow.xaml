@@ -4,9 +4,10 @@
         Title="Task'sList plugins"
         Width="720" Height="590" MinWidth="620" MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent">
+        WindowStyle="SingleBorderWindow" AllowsTransparency="False"
+        ResizeMode="CanResize" Background="{StaticResource CanvasBrush}">
     <Border Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="1" CornerRadius="14">
+            BorderThickness="0" CornerRadius="0">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="64" />
@@ -14,16 +15,13 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
-                    MouseLeftButtonDown="TitleBarMouseDown">
-                <Grid Margin="20,0,12,0">
+            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+                <Grid Margin="20,0">
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Plugins &amp; permissions" FontSize="18" FontWeight="Bold" />
                         <TextBlock Text="Capabilities are denied until you grant them." FontSize="10"
                                    Foreground="{StaticResource MutedTextBrush}" />
                     </StackPanel>
-                    <Button Style="{StaticResource GhostButton}" Content="×" Width="36" Height="36"
-                            HorizontalAlignment="Right" VerticalAlignment="Center" Click="CloseClick" />
                 </Grid>
             </Border>
             <Border Grid.Row="1" Background="#302A22" CornerRadius="10" Margin="18,16,18,4" Padding="12">

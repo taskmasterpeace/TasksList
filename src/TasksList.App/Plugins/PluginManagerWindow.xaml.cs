@@ -2,7 +2,7 @@ using Microsoft.Win32;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
+using TasksList.App.Shell;
 using TasksList.PluginSdk;
 
 namespace TasksList.App.Plugins;
@@ -14,6 +14,7 @@ public partial class PluginManagerWindow : Window
     public PluginManagerWindow(PluginCatalogSnapshot catalog)
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => DwmWindowService.Apply(this, DwmWindowKind.MainWindow);
         _plugins = catalog.Plugins.Select(entry => new PluginCardViewModel(entry.Manifest)).ToList();
         PluginList.ItemsSource = _plugins;
         CatalogStatus.Text = catalog.Errors.Count == 0
@@ -71,15 +72,6 @@ public partial class PluginManagerWindow : Window
         }
     }
 
-    private void TitleBarMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton == MouseButton.Left)
-        {
-            DragMove();
-        }
-    }
-
-    private void CloseClick(object sender, RoutedEventArgs e) => Close();
 }
 
 public sealed class PluginCardViewModel

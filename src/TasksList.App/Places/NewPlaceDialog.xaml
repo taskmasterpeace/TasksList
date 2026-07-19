@@ -5,11 +5,11 @@
         Width="420" Height="280"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent">
+        WindowStyle="SingleBorderWindow"
+        AllowsTransparency="False"
+        Background="{StaticResource PanelBrush}">
     <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="1" CornerRadius="12" Padding="22">
+            BorderThickness="0" CornerRadius="0" Padding="22">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
