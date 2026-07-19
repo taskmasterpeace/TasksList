@@ -14,6 +14,7 @@ public partial class App : Application
     private GlobalHotkeyService? _hotkeys;
     private AppSettingsStore? _settingsStore;
     private AppSettings _settings = AppSettings.Default;
+    private WindowsThemeService? _windowsThemeService;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -28,7 +29,12 @@ public partial class App : Application
         try
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            LoadUserTheme(dataDirectory);
+            var userTheme = LoadUserTheme(dataDirectory);
+            _windowsThemeService = new WindowsThemeService(
+                new WindowsThemeEnvironment(),
+                new ApplicationThemeResourceSink(Resources, Dispatcher),
+                userTheme);
+            _windowsThemeService.Start();
             await database.InitializeAsync();
             _settingsStore = new AppSettingsStore(Path.Combine(dataDirectory, "settings.json"));
             _settings = _settingsStore.Load();
@@ -80,6 +86,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _windowsThemeService?.Dispose();
         _hotkeys?.Dispose();
         _tray?.Dispose();
         base.OnExit(e);
@@ -155,7 +162,7 @@ public partial class App : Application
         Shutdown();
     }
 
-    private void LoadUserTheme(string dataDirectory)
+    private ThemeDefinition LoadUserTheme(string dataDirectory)
     {
         var activeThemeDirectory = Path.Combine(dataDirectory, "themes", "active");
         var activeThemePath = Path.Combine(activeThemeDirectory, "theme.json");
@@ -169,23 +176,8 @@ public partial class App : Application
             }
         }
 
-        var theme = File.Exists(activeThemePath)
+        return File.Exists(activeThemePath)
             ? ThemeLoader.LoadOrDefault(activeThemePath)
             : ThemeLoader.Default;
-        ApplyBrush(theme, "canvas", "CanvasBrush");
-        ApplyBrush(theme, "panel", "PanelBrush");
-        ApplyBrush(theme, "card", "CardBrush");
-        ApplyBrush(theme, "border", "BorderBrush");
-        ApplyBrush(theme, "accent", "PrimaryBrush");
-        ApplyBrush(theme, "success", "SuccessBrush");
-    }
-
-    private void ApplyBrush(ThemeDefinition theme, string token, string resourceKey)
-    {
-        if (theme.Tokens.TryGetValue(token, out var value) &&
-            ColorConverter.ConvertFromString(value) is Color color)
-        {
-            Resources[resourceKey] = new SolidColorBrush(color);
-        }
     }
 }
