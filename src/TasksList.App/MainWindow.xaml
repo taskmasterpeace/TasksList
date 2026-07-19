@@ -198,8 +198,11 @@
                                 </TextBlock>
                             </Grid>
                             <Grid Grid.Row="2">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ListBox x:Name="NotesList" SelectionMode="Extended" Background="Transparent" BorderThickness="0">
+                                <ListBox x:Name="NotesList" SelectionMode="Extended"
+                                         Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.CanContentScroll="False">
                                         <ListBox.ItemsPanel>
                                             <ItemsPanelTemplate><WrapPanel ItemWidth="244" /></ItemsPanelTemplate>
                                         </ListBox.ItemsPanel>
@@ -260,8 +263,7 @@
                                                 </Button>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </ScrollViewer>
+                                </ListBox>
                                 <TextBlock Text="No notes match this view. Create a sticky or drop in a Markdown file."
                                            Foreground="{StaticResource MutedTextBrush}" FontSize="14"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
