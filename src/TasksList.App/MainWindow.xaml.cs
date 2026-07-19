@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using TasksList.App.Sticky;
 using TasksList.App.Clipboard;
 using TasksList.App.Capture;
@@ -92,16 +93,25 @@ public partial class MainWindow : Window
         _browserBridgeMonitor = new BrowserBridgeMonitor(browserBridgePath, BrowserSnapshotChangedAsync);
         _contextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
         _contextTimer.Tick += ContextTimerTick;
+        SourceInitialized += (_, _) =>
+        {
+            DwmWindowService.Apply(this, DwmWindowKind.MainWindow);
+            SystemEvents.UserPreferenceChanged += SystemPreferenceChanged;
+        };
         Loaded += OnLoaded;
         Closing += LibraryClosing;
         Closed += (_, _) =>
         {
+            SystemEvents.UserPreferenceChanged -= SystemPreferenceChanged;
             _clipboardMonitor.Dispose();
             _clipboardPalette?.DisposePalette();
             _browserBridgeMonitor.Dispose();
             _contextTimer.Stop();
         };
     }
+
+    private void SystemPreferenceChanged(object sender, UserPreferenceChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(() => DwmWindowService.Apply(this, DwmWindowKind.MainWindow));
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
