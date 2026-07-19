@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private bool _exitRequested;
     private readonly HashSet<NoteId> _activeReminders = [];
     private PendingScreenCapture? _lastScreenCapture;
+    private readonly NoteCardCommandService _noteCardCommands;
     private bool _promoteDuplicateClips = true;
     private double _paletteWidth = 940;
     private double _paletteHeight = 610;
@@ -61,6 +62,14 @@ public partial class MainWindow : Window
     {
         _database = database;
         InitializeComponent();
+        _noteCardCommands = new NoteCardCommandService(
+            new TasksListNoteCardCommandStore(_database),
+            OpenSticky,
+            markdown => System.Windows.Clipboard.SetText(markdown),
+            noteId =>
+            {
+                if (_openStickies.Remove(noteId, out var sticky)) sticky.CloseForExternalLifecycleChange();
+            });
         NotesList.ItemsSource = _notes;
         ClipboardList.ItemsSource = _clipboardCards;
         PlacesList.ItemsSource = _placeCards;
@@ -358,6 +367,140 @@ public partial class MainWindow : Window
         {
             OpenSticky(card.Note);
         }
+    }
+
+    private void NoteCardRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Button { Tag: NoteCardViewModel card }) return;
+
+        var clickedIndex = NotesList.Items.IndexOf(card);
+        var selectedIndices = NotesList.SelectedItems
+            .Cast<NoteCardViewModel>()
+            .Select(item => NotesList.Items.IndexOf(item))
+            .ToArray();
+        var resolved = NoteCardSelectionPolicy.ResolveRightClick(clickedIndex, selectedIndices);
+        NotesList.SelectedItems.Clear();
+        foreach (var index in resolved)
+        {
+            NotesList.SelectedItems.Add(NotesList.Items[index]);
+        }
+    }
+
+    private async void NoteCardRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Button { Tag: NoteCardViewModel card } button)
+        {
+            await OpenNoteCardContextMenuAsync(button, card);
+            e.Handled = true;
+        }
+    }
+
+    private async void NoteCardKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not Button { Tag: NoteCardViewModel card }) return;
+
+        if (e.Key == Key.Enter)
+        {
+            _noteCardCommands.Open([card.Note]);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Apps ||
+                 (e.Key == Key.F10 && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))
+        {
+            await OpenNoteCardContextMenuAsync((FrameworkElement)sender, card);
+            e.Handled = true;
+        }
+    }
+
+    private async Task OpenNoteCardContextMenuAsync(
+        FrameworkElement target,
+        NoteCardViewModel fallback)
+    {
+        var cards = NotesList.SelectedItems.Cast<NoteCardViewModel>().ToArray();
+        if (cards.Length == 0) cards = [fallback];
+        var notes = cards.Select(card => card.Note).ToArray();
+        var menu = new ContextMenu { PlacementTarget = target };
+
+        MenuItem Add(string header, Action action, string? gesture = null)
+        {
+            var item = new MenuItem { Header = header, InputGestureText = gesture ?? string.Empty };
+            item.Click += (_, _) => action();
+            menu.Items.Add(item);
+            return item;
+        }
+
+        Add("_Open sticky", () => _noteCardCommands.Open(notes), "Enter");
+        Add("_Duplicate", () => _ = DuplicateSelectedNotesAsync(notes), "Ctrl+D");
+        Add("Copy _Markdown", () => _noteCardCommands.CopyMarkdown(notes), "Ctrl+C");
+        menu.Items.Add(new Separator());
+
+        var attach = Add(
+            "_Attach to last application",
+            () => _ = AttachSelectedNotesAsync(notes));
+        attach.IsEnabled = _lastExternalContext is not null;
+        attach.ToolTip = attach.IsEnabled
+            ? null
+            : "Use another application first so Task'sList can identify it.";
+
+        var styleMenu = new MenuItem { Header = "Apply _style" };
+        foreach (var preset in Enum.GetValues<PaperPreset>())
+        {
+            var style = NoteStyle.FromPreset(preset);
+            var item = new MenuItem { Header = preset.ToString(), Tag = style };
+            item.Click += async (_, _) => await ApplyStyleToNotesAsync(cards, style);
+            styleMenu.Items.Add(item);
+        }
+
+        var namedStyles = await _database.ListNamedStylesAsync();
+        if (namedStyles.Count > 0) styleMenu.Items.Add(new Separator());
+        foreach (var named in namedStyles)
+        {
+            var item = new MenuItem { Header = named.Name, Tag = named.Style };
+            item.Click += async (_, _) => await ApplyStyleToNotesAsync(cards, named.Style);
+            styleMenu.Items.Add(item);
+        }
+
+        menu.Items.Add(styleMenu);
+        menu.Items.Add(new Separator());
+        Add("_Archive", () => _ = ArchiveSelectedNotesAsync(notes));
+        Add("Move to _Trash…", () => _ = TrashSelectedNotesAsync(notes), "Delete");
+        target.ContextMenu = menu;
+        menu.IsOpen = true;
+    }
+
+    private async Task DuplicateSelectedNotesAsync(IReadOnlyList<Note> notes)
+    {
+        var duplicates = await _noteCardCommands.DuplicateAsync(notes, DateTimeOffset.Now);
+        await ReloadNotesAsync();
+        foreach (var duplicate in duplicates) OpenSticky(duplicate);
+    }
+
+    private async Task AttachSelectedNotesAsync(IReadOnlyList<Note> notes)
+    {
+        if (_lastExternalContext is null) return;
+        await _noteCardCommands.AttachAsync(notes, _lastExternalContext);
+        await ReloadNotesAsync();
+    }
+
+    private async Task ArchiveSelectedNotesAsync(IReadOnlyList<Note> notes)
+    {
+        await _noteCardCommands.ArchiveAsync(notes, DateTimeOffset.Now);
+        await ReloadNotesAsync();
+    }
+
+    private async Task TrashSelectedNotesAsync(IReadOnlyList<Note> notes)
+    {
+        var confirmed = MessageBox.Show(
+            this,
+            $"Move {notes.Count} note{(notes.Count == 1 ? string.Empty : "s")} to Trash? They can be restored for 30 days.",
+            "Move notes to Trash",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        if (!confirmed) return;
+
+        await _noteCardCommands.MoveToTrashAsync(notes, DateTimeOffset.Now);
+        await ReloadNotesAsync();
+        await ReloadTrashAsync();
     }
 
     private async void ApplyStyleToSelectedClick(object sender, RoutedEventArgs e)

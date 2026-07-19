@@ -230,7 +230,11 @@
                                             <DataTemplate>
                                                 <Button Style="{StaticResource GhostButton}" Padding="0" Margin="0,0,12,12"
                                                         Width="232" Height="184" HorizontalContentAlignment="Stretch"
-                                                        VerticalContentAlignment="Stretch" Click="OpenNoteClick" Tag="{Binding}">
+                                                        VerticalContentAlignment="Stretch" Click="OpenNoteClick" Tag="{Binding}"
+                                                        AutomationProperties.Name="{Binding Title}"
+                                                        PreviewMouseRightButtonDown="NoteCardRightButtonDown"
+                                                        PreviewMouseRightButtonUp="NoteCardRightButtonUp"
+                                                        KeyDown="NoteCardKeyDown">
                                                     <Border Background="{Binding PaperBrush}" CornerRadius="10" Padding="15"
                                                             BorderBrush="{Binding EdgeBrush}" BorderThickness="1">
                                                         <Grid>

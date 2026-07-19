@@ -20,6 +20,7 @@ namespace TasksList.App.Sticky;
 
 public partial class StickyWindow : Window
 {
+    private bool _skipPresentationSaveOnClose;
     private readonly TasksListDatabase _database;
     private readonly DispatcherTimer _contentSaveTimer;
     private readonly DispatcherTimer _presentationSaveTimer;
@@ -1013,6 +1014,12 @@ public partial class StickyWindow : Window
         Close();
     }
 
+    public void CloseForExternalLifecycleChange()
+    {
+        _skipPresentationSaveOnClose = true;
+        Close();
+    }
+
     protected override async void OnClosed(EventArgs e)
     {
         _contentSaveTimer.Stop();
@@ -1022,7 +1029,10 @@ public partial class StickyWindow : Window
         {
             await SaveContentAsync();
         }
-        await _database.SaveNotePresentationAsync(_controller.Presentation);
+        if (!_skipPresentationSaveOnClose)
+        {
+            await _database.SaveNotePresentationAsync(_controller.Presentation);
+        }
         base.OnClosed(e);
     }
 
