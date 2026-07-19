@@ -183,6 +183,17 @@ public partial class MainWindow : Window
             }
         }
 
+        await CaptureCompletionOperation.SaveAndCopyAsync(
+            () => SaveScreenCaptureAsync(source, result),
+            capture => _clipboardPasteService.Copy(capture, PasteRepresentation.Original));
+        await ReloadClipboardAsync();
+        StatusText.Text = "CAPTURED · COPIED TO CLIPBOARD";
+    }
+
+    private async Task<CaptureModel> SaveScreenCaptureAsync(
+        ContextRef source,
+        ScreenCaptureResult result)
+    {
         var payload = await _payloadStore.PutAsync(result.PngBytes, "image/png");
         await _database.SaveContextAsync(source);
         var capture = CaptureModel.Create(
@@ -192,16 +203,7 @@ public partial class MainWindow : Window
                 DateTimeOffset.Now)
             .WithTextRepresentation("application/x-taskslist-payload-path", payload.Path);
         await _database.SaveCaptureAsync(capture);
-        var note = Note.Create(
-                $"Capture from {source.DisplayName}",
-                $"# Screen capture\n\n![Captured region](<{payload.Path}>)\n\n" +
-                $"**Source:** {source.DisplayName}\n\n" +
-                $"**Size:** {result.PixelWidth} × {result.PixelHeight}")
-            .AttachTo(source.Id, AttachmentVisibility.WhilePresent);
-        await _database.SaveNoteAsync(note);
-        await ReloadClipboardAsync();
-        await ReloadNotesAsync();
-        OpenSticky(note);
+        return capture;
     }
 
     public Task NewStickyFromShellAsync() =>
