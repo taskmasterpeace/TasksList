@@ -7,6 +7,8 @@ public sealed class WindowsAccessibilityContractTests
     [Theory]
     [InlineData("MainWindow.xaml", "SearchBox", "Search notes")]
     [InlineData("MainWindow.xaml", "NotesList", "Working notes")]
+    [InlineData("MainWindow.xaml", "PlacesList", "Places")]
+    [InlineData("MainWindow.xaml", "MainTabs", "Task'sList library sections")]
     [InlineData("Clipboard/ClipboardPaletteWindow.xaml", "TypeFilter", "Filter by type")]
     [InlineData("Clipboard/ClipboardPaletteWindow.xaml", "DateFilter", "Filter by date")]
     [InlineData("Clipboard/ClipboardPaletteWindow.xaml", "SourceFilter", "Filter by source application")]

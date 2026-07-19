@@ -116,7 +116,7 @@
                                         <TextBlock x:Name="NoteCountText" Text="0" FontSize="10" />
                                     </Border>
                                 </Grid>
-                                <ItemsControl x:Name="PlacesList">
+                                <ItemsControl x:Name="PlacesList" AutomationProperties.Name="Places">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left"
@@ -147,7 +147,9 @@
                     </Grid>
                 </Border>
 
-                <TabControl Grid.Column="1" Margin="24,18,24,24" Background="Transparent" BorderThickness="0"
+                <TabControl x:Name="MainTabs" Grid.Column="1" Margin="24,18,24,24"
+                            AutomationProperties.Name="Task'sList library sections"
+                            Background="Transparent" BorderThickness="0"
                             ItemContainerStyle="{StaticResource LibraryTab}">
                     <TabItem Header="Notes" AutomationProperties.Name="Notes">
                         <Grid Margin="0,18,0,0">
